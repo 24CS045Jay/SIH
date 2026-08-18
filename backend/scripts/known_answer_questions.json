@@ -1,0 +1,9 @@
+[
+  {"id":"KA-01","question":"What changed in the brake inspection frequency, who is affected, and what action is required?","expected_titles":["Maintenance Manual"],"minimum_citations":1},
+  {"id":"KA-02","question":"What safety review deadline is stated in Safety Circular S-101?","expected_titles":["Safety Circular S-101"],"minimum_citations":1},
+  {"id":"KA-03","question":"Which vendor and purchase-order obligation appear in P-44?","expected_titles":["Purchase Order Correspondence P-44"],"minimum_citations":1},
+  {"id":"KA-04","question":"What action is required after the platform incident in I-09?","expected_titles":["Incident Report I-09"],"minimum_citations":1},
+  {"id":"KA-05","question":"What is the completion deadline for the HR human-factors refresher?","expected_titles":["HR Training Notice H-12"],"minimum_citations":1},
+  {"id":"KA-06","question":"What waste-oil manifest evidence deadline is required by E-07?","expected_titles":["Environmental Compliance Note E-07"],"minimum_citations":1},
+  {"id":"KA-07","question":"What is the quantum telescope launch coordinate?","expected_titles":[],"refusal":true,"minimum_citations":0}
+]
