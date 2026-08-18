@@ -74,3 +74,27 @@ curl http://localhost:8000/api/v1/health
 A healthy backend returns JSON with `status: "ok"`, service name, environment, and a UTC timestamp. The frontend renders an empty left navigation, center stream, and right evidence panel as the Phase 1 base layout.
 
 > **Safety boundary:** Any future AI-derived field must include `source_version_id`, citation, confidence, and review state. Critical, safety, and compliance actions require explicit human approval before publication. Uploaded text is untrusted document data, never an instruction to the application.
+
+## Phase 2 database schema
+
+Phase 2 adds the complete PostgreSQL relational model specified by CHA-225. The authoritative SQLAlchemy entities are in `backend/app/models/entities.py`, with enum definitions and naming conventions in `backend/app/models/base.py`. The schema contains `users`, `departments`, `documents`, `document_versions`, `files`, `pages`, `chunks`, `extracted_facts`, `actions`, `action_events`, `alerts`, `assignments`, `comparisons`, `changes`, `audit_events`, and `feedback`.
+
+Run the migration against a fresh PostgreSQL database with:
+
+```bash
+cd backend
+source .venv/bin/activate
+alembic upgrade head
+```
+
+Seed only synthetic departments and RBAC users with:
+
+```bash
+python scripts/seed.py
+```
+
+The seed script creates seven departments and seven demo users covering all six RBAC roles. It intentionally creates no documents or document-derived records. Demo credentials use a deterministic placeholder hash for local development only and must not be used in a production deployment.
+
+`document_versions` and `audit_events` are protected by a SQLAlchemy `before_flush` guard in `backend/app/models/__init__.py`. Attempts to update or delete either entity through the application session raise an error. New uploads must create a new immutable version row; audit events must be appended rather than edited or removed.
+
+The schema ER diagram is available as Mermaid source in [`docs/schema-er.mmd`](docs/schema-er.mmd) and as a rendered image in [`docs/schema-er.png`](docs/schema-er.png).

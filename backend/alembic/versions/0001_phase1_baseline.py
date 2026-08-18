@@ -1,8 +1,11 @@
-"""Phase 1 baseline; domain tables are introduced in Phase 2.
+"""Create the complete CHA-225 Phase 2 relational schema.
 
 Revision ID: 0001_phase1_baseline
+Revises:
 """
 from alembic import op
+
+from app.models import Base
 
 revision = "0001_phase1_baseline"
 down_revision = None
@@ -11,8 +14,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    pass
+    # The ORM metadata is the single schema contract for this initial revision.
+    # It includes PostgreSQL enums, foreign keys, uniqueness rules, and indexes.
+    Base.metadata.create_all(bind=op.get_bind())
 
 
 def downgrade() -> None:
-    pass
+    Base.metadata.drop_all(bind=op.get_bind())
