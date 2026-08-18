@@ -12,6 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Chunk, Department, Document, DocumentVersion, Page, Role, User
+from app.services.access import can_access_scope
 
 REFUSAL = "Information not available in the approved documents"
 TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -82,15 +83,7 @@ async def build_chunks(session: AsyncSession, version_id: UUID) -> int:
 
 
 def allowed(scope: dict, user: dict) -> bool:
-    role = user.get("role")
-    if role in {Role.SYSTEM_ADMINISTRATOR.value, Role.DOCUMENT_ADMINISTRATOR.value, Role.REVIEWER.value, Role.AUDITOR.value}:
-        return True
-    roles = scope.get("roles") or []
-    if roles and role not in roles: return False
-    if role == Role.EXECUTIVE_VIEWER.value:
-        return scope.get("sensitivity", "internal") in {"public", "internal"}
-    department_id = user.get("department_id")
-    return not scope.get("department_id") or scope.get("department_id") == department_id
+    return can_access_scope(scope, user)
 
 
 async def retrieve(session: AsyncSession, question: str, user: dict, limit: int = 6) -> list[RetrievedChunk]:

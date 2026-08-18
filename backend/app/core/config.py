@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     storage_path: str = "./storage"
     max_upload_size_mb: int = 25
     low_ocr_confidence_threshold: float = 0.70
+    demo_purge_after_judging: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

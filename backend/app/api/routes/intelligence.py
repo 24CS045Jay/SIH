@@ -5,12 +5,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.security import get_current_user, require_roles
 from app.db.session import get_db
 from app.models import Document, DocumentVersion, Feedback, ReviewerState, Role, User
 from app.schemas.intelligence import CorrectionRequest, IntelligenceCardResponse, IntelligenceFieldResponse, Span
 from app.services.intelligence_persistence import get_facts
+from app.services.access import can_access_document
 
 router = APIRouter(prefix="/documents", tags=["intelligence"])
 
@@ -29,9 +31,10 @@ def field(fact, source: str | None = None) -> IntelligenceFieldResponse:
 
 @router.get("/{document_id}/intelligence", response_model=IntelligenceCardResponse)
 async def intelligence_card(document_id: UUID, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> IntelligenceCardResponse:
-    row = (await db.execute(select(Document, DocumentVersion).join(DocumentVersion, DocumentVersion.document_id == Document.id).where(Document.id == document_id).order_by(DocumentVersion.uploaded_at.desc()).limit(1))).first()
+    row = (await db.execute(select(Document, DocumentVersion).options(selectinload(Document.owner)).join(DocumentVersion, DocumentVersion.document_id == Document.id).where(Document.id == document_id).order_by(DocumentVersion.uploaded_at.desc()).limit(1))).first()
     if row is None: raise HTTPException(status_code=404, detail="Document not found")
     document, version = row
+    if not can_access_document(document, current_user): raise HTTPException(status_code=403, detail="Document is outside your access scope")
     facts = list(await get_facts(db, version.id))
     if not facts: raise HTTPException(status_code=409, detail="Intelligence processing is not ready")
     grouped = {"classification": [], "summary": [], "key_fact": [], "entity": [], "action": [], "deadline": [], "priority": [], "routing": []}
@@ -45,8 +48,10 @@ async def intelligence_card(document_id: UUID, current_user: dict = Depends(get_
 
 @router.post("/{document_id}/intelligence/corrections", response_model=IntelligenceFieldResponse)
 async def correct_intelligence(document_id: UUID, payload: CorrectionRequest, current_user: dict = Depends(require_roles(Role.SYSTEM_ADMINISTRATOR, Role.DOCUMENT_ADMINISTRATOR, Role.REVIEWER)), db: AsyncSession = Depends(get_db)) -> IntelligenceFieldResponse:
-    row = (await db.execute(select(DocumentVersion).where(DocumentVersion.document_id == document_id).order_by(DocumentVersion.uploaded_at.desc()).limit(1))).scalar_one_or_none()
+    row = (await db.execute(select(DocumentVersion).join(Document, Document.id == DocumentVersion.document_id).options(selectinload(Document.owner)).where(DocumentVersion.document_id == document_id).order_by(DocumentVersion.uploaded_at.desc()).limit(1))).scalar_one_or_none()
     if row is None: raise HTTPException(status_code=404, detail="Document not found")
+    document = await db.scalar(select(Document).options(selectinload(Document.owner)).where(Document.id == document_id))
+    if document is None or not can_access_document(document, current_user): raise HTTPException(status_code=403, detail="Document is outside your access scope")
     facts = list(await get_facts(db, row.id))
     fact = next((item for item in facts if str(item.id) == payload.field or item.field == payload.field), None)
     if fact is None: raise HTTPException(status_code=404, detail="Intelligence field not found")
