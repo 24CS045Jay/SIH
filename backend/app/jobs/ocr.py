@@ -12,6 +12,7 @@ from app.jobs.celery_app import celery_app
 from app.models import DocumentVersion, File, Page, VersionStatus
 from app.services.intelligence import analyze_pages
 from app.services.intelligence_persistence import persist_intelligence
+from app.services.rag import build_chunks
 
 
 def extract_pages(path: Path, mime_type: str) -> list[tuple[str, float]]:
@@ -54,6 +55,7 @@ async def process_version(version_id: str) -> None:
             await session.flush()
             intelligence = analyze_pages([(page_no, text) for page_no, (text, _) in enumerate(page_data, start=1)])
             await persist_intelligence(session, version.id, intelligence)
+            await build_chunks(session, version.id)
             version.status = VersionStatus.REVIEW_READY
             await session.commit()
         except Exception:

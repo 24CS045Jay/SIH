@@ -195,6 +195,7 @@ class AuditEvent(UUIDPrimaryKeyMixin, Base):
     object_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, index=True)
     hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    detail: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     actor: Mapped["User | None"] = relationship(back_populates="audit_events")
     __table_args__ = (Index("ix_audit_events_object_timestamp", "object_type", "object_id", "timestamp"),)
 
