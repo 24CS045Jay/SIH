@@ -138,3 +138,13 @@ Retrieval combines lexical keyword scoring with deterministic vector similarity.
 Every non-refusal answer includes at least one citation containing the document title, version, page number, chunk ID, quoted evidence, and an original-source URL. The frontend displays inline citation markers, a citations panel, Open original links, and the disclaimer **AI-generated answer — verify against source**. The UI includes the required brake-inspection demo question and a deliberately unanswerable cafeteria-menu question.
 
 Each RAG question, answer/refusal state, citation set, and integrity hash is appended to `audit_events.detail` by the backend. The audit payload migration is `0003_rag_audit_detail`. The local verification script is `backend/scripts/verify_rag.py`.
+
+## Phase 7 Alert Center and Action Center
+
+Phase 7 adds protected workflow APIs under `/api/v1/alerts` and `/api/v1/actions`. AI-generated alerts now carry a title, priority, visible reason codes, suggested department, suggested action, deadline, source excerpt, reviewer metadata, and an enforced lifecycle: `draft → needs_review → approved → assigned → acknowledged → in_progress → completed → verified_closed` (or `rejected`). The backend rejects invalid skips; in particular, a Critical alert cannot move to `approved` unless it is already in `needs_review` and the actor is a Reviewer or administrator.
+
+The Alert Center supports priority and status filters, reviewer approval/rejection, field edits that are captured in `feedback` with before/after values, Quick Share of only the minimum excerpt/summary/action/deadline, and conversion of approved alerts into actions. Quick Share is intentionally an in-app routing operation for the MVP; it does not send external notifications.
+
+The Action Center supports create, list, read, update, and safe-delete operations. Safe delete is implemented as a `rejected` soft-delete so the append-only action timeline is preserved. Action statuses include `draft`, `open`, `acknowledged`, `in_progress`, `blocked`, `overdue`, `completed`, `closed`, and `rejected`. Owners can acknowledge, update, and complete their actions with evidence; reviewers can verify and close them. Every transition and comment writes an `action_events` row, and application-layer guards prevent action-event updates and deletes. Overdue actions are visually flagged in-app only; there is no autonomous disciplinary or external notification automation.
+
+The reusable frontend timeline component shows each action event, actor event type, timestamp, and transition detail. The end-to-end workflow check is `backend/scripts/verify_workflows.py`, and the schema changes are in Alembic revision `0004_phase7_workflows`.

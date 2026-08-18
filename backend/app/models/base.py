@@ -85,13 +85,31 @@ class ActionPriority(str, Enum):
     CRITICAL = "critical"
 
 
+class AlertStatus(str, Enum):
+    DRAFT = "draft"
+    NEEDS_REVIEW = "needs_review"
+    APPROVED = "approved"
+    ASSIGNED = "assigned"
+    ACKNOWLEDGED = "acknowledged"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    VERIFIED_CLOSED = "verified_closed"
+    REJECTED = "rejected"
+
+
 class ActionStatus(str, Enum):
+    DRAFT = "draft"
+    OPEN = "open"
     PROPOSED = "proposed"
     PENDING_APPROVAL = "pending_approval"
     ASSIGNED = "assigned"
     ACKNOWLEDGED = "acknowledged"
     IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
+    OVERDUE = "overdue"
     COMPLETED = "completed"
+    CLOSED = "closed"
+    REJECTED = "rejected"
     CANCELLED = "cancelled"
 
 

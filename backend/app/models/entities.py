@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import (
-    ActionEventType, ActionPriority, ActionStatus, Base, ChangeType, ComparisonStatus,
+    ActionEventType, ActionPriority, ActionStatus, AlertStatus, Base, ChangeType, ComparisonStatus,
     CreatedAtMixin, DocumentClassification, FeedbackReason, ImpactLevel, MalwareStatus,
     ReviewerState, Role, RoutingState, Sensitivity, UUIDPrimaryKeyMixin, UserStatus,
     VersionStatus,
@@ -125,7 +125,13 @@ class Action(UUIDPrimaryKeyMixin, Base):
     owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     priority: Mapped[ActionPriority] = mapped_column(enum_type(ActionPriority), nullable=False, index=True)
-    status: Mapped[ActionStatus] = mapped_column(enum_type(ActionStatus), nullable=False, default=ActionStatus.PROPOSED, index=True)
+    status: Mapped[ActionStatus] = mapped_column(enum_type(ActionStatus), nullable=False, default=ActionStatus.DRAFT, index=True)
+    comments: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    completion_evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    verified_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     source_version: Mapped["DocumentVersion"] = relationship(back_populates="actions")
     owner: Mapped["User | None"] = relationship(back_populates="owned_actions", foreign_keys=[owner_id])
     events: Mapped[list["ActionEvent"]] = relationship(back_populates="action", cascade="save-update, merge", passive_deletes=True)
@@ -147,8 +153,15 @@ class ActionEvent(UUIDPrimaryKeyMixin, Base):
 class Alert(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "alerts"
     source_version_id: Mapped[UUID] = mapped_column(ForeignKey("document_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False, default="AI-generated alert")
     priority: Mapped[ActionPriority] = mapped_column(enum_type(ActionPriority), nullable=False, index=True)
     reason_codes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    suggested_department: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    suggested_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    source_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewer_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    status: Mapped[AlertStatus] = mapped_column(enum_type(AlertStatus), nullable=False, default=AlertStatus.DRAFT, index=True)
     routing_state: Mapped[RoutingState] = mapped_column(enum_type(RoutingState), nullable=False, default=RoutingState.PENDING, index=True)
     source_version: Mapped["DocumentVersion"] = relationship(back_populates="alerts")
     assignments: Mapped[list["Assignment"]] = relationship(back_populates="alert")
