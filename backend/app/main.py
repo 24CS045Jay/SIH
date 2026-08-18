@@ -9,6 +9,7 @@ from app.api.routes.search import router as search_router
 from app.api.routes.workflows import router as workflows_router
 from app.api.routes.comparisons import router as comparisons_router
 from app.api.routes.rbac import router as rbac_router
+from app.api.routes.dashboard import router as dashboard_router
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -31,6 +32,7 @@ api_v1.include_router(workflows_router)
 api_v1.include_router(comparisons_router)
 api_v1.include_router(auth_router)
 api_v1.include_router(rbac_router)
+api_v1.include_router(dashboard_router)
 app.mount(settings.api_v1_prefix, api_v1)
 
 
