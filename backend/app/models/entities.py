@@ -197,6 +197,10 @@ class Change(UUIDPrimaryKeyMixin, Base):
     old_span: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     new_span: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     impact: Mapped[ImpactLevel] = mapped_column(enum_type(ImpactLevel), nullable=False, index=True)
+    interpretation: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    affected_department: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    priority: Mapped[ActionPriority] = mapped_column(enum_type(ActionPriority), nullable=False, default=ActionPriority.MEDIUM, index=True)
+    required_action: Mapped[str | None] = mapped_column(Text, nullable=True)
     comparison: Mapped["Comparison"] = relationship(back_populates="changes")
 
 

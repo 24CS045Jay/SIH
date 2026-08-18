@@ -13,6 +13,7 @@ from app.models import DocumentVersion, File, Page, VersionStatus
 from app.services.intelligence import analyze_pages
 from app.services.intelligence_persistence import persist_intelligence
 from app.services.rag import build_chunks
+from app.services.comparison import compare_versions
 
 
 def extract_pages(path: Path, mime_type: str) -> list[tuple[str, float]]:
@@ -56,6 +57,9 @@ async def process_version(version_id: str) -> None:
             intelligence = analyze_pages([(page_no, text) for page_no, (text, _) in enumerate(page_data, start=1)])
             await persist_intelligence(session, version.id, intelligence)
             await build_chunks(session, version.id)
+            previous = await session.scalar(select(DocumentVersion).where(DocumentVersion.document_id == version.document_id, DocumentVersion.id != version.id, DocumentVersion.uploaded_at < version.uploaded_at).order_by(DocumentVersion.uploaded_at.desc()))
+            if previous is not None:
+                await compare_versions(session, previous.id, version.id)
             version.status = VersionStatus.REVIEW_READY
             await session.commit()
         except Exception:

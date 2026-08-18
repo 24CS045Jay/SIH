@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File as UploadFileDependency, HTTPException, Query, UploadFile, status
@@ -43,10 +44,24 @@ async def upload_document(file: UploadFile = UploadFileDependency(...), current_
         raise HTTPException(status_code=409, detail=f"Duplicate file detected; existing version is {duplicate.id}.")
     owner_id = UUID(current_user["sub"])
     title = Path(filename).stem.replace("_", " ").strip() or "Untitled document"
-    document = Document(title=title, type=extension.lstrip("."), owner_id=owner_id, classification=DocumentClassification.OTHER, sensitivity=Sensitivity.INTERNAL)
-    db.add(document)
-    await db.flush()
-    version = DocumentVersion(document_id=document.id, version_label="v1", hash=digest, status=VersionStatus.QUEUED)
+    normalized_title = re.sub(r"\s+v\d+$", "", title, flags=re.IGNORECASE).strip()
+    document = await db.scalar(select(Document).where(Document.title.in_([title, normalized_title])))
+    if document is None:
+        document = Document(title=normalized_title, type=extension.lstrip("."), owner_id=owner_id, classification=DocumentClassification.OTHER, sensitivity=Sensitivity.INTERNAL)
+        db.add(document)
+        await db.flush()
+    labels = set((await db.execute(select(DocumentVersion.version_label).where(DocumentVersion.document_id == document.id))).scalars().all())
+    existing_count = len(labels)
+    explicit_label = re.search(r"\s+(v\d+)$", title, flags=re.IGNORECASE)
+    requested_label = explicit_label.group(1).lower() if explicit_label else None
+    if requested_label and requested_label not in labels:
+        version_label = requested_label
+    else:
+        next_number = existing_count + 1
+        while f"v{next_number}" in labels:
+            next_number += 1
+        version_label = f"v{next_number}"
+    version = DocumentVersion(document_id=document.id, version_label=version_label, hash=digest, status=VersionStatus.QUEUED)
     db.add(version)
     await db.flush()
     path = version_storage_path(version.id, filename)
