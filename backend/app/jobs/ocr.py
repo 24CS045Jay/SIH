@@ -10,6 +10,8 @@ from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
 from app.jobs.celery_app import celery_app
 from app.models import DocumentVersion, File, Page, VersionStatus
+from app.services.intelligence import analyze_pages
+from app.services.intelligence_persistence import persist_intelligence
 
 
 def extract_pages(path: Path, mime_type: str) -> list[tuple[str, float]]:
@@ -45,15 +47,21 @@ async def process_version(version_id: str) -> None:
         version.status = VersionStatus.PROCESSING
         await session.commit()
         try:
-            pages = extract_pages(Path(source.object_key), source.mime_type)
+            page_data = extract_pages(Path(source.object_key), source.mime_type)
             await session.execute(delete(Page).where(Page.version_id == version.id))
-            for page_no, (text, confidence) in enumerate(pages, start=1):
+            for page_no, (text, confidence) in enumerate(page_data, start=1):
                 session.add(Page(version_id=version.id, page_no=page_no, image_key=source.object_key, ocr_text=text, ocr_confidence=confidence))
+            await session.flush()
+            intelligence = analyze_pages([(page_no, text) for page_no, (text, _) in enumerate(page_data, start=1)])
+            await persist_intelligence(session, version.id, intelligence)
             version.status = VersionStatus.REVIEW_READY
             await session.commit()
         except Exception:
-            version.status = VersionStatus.FAILED
-            await session.commit()
+            await session.rollback()
+            version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == version_id))
+            if version is not None:
+                version.status = VersionStatus.FAILED
+                await session.commit()
             raise
 
 

@@ -10,3 +10,4 @@ celery==5.5.3
 python-multipart==0.0.20
 PyJWT==2.10.1
 email-validator==2.2.0
+openai>=1.80.0
