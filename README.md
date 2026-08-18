@@ -98,3 +98,11 @@ The seed script creates seven departments and seven demo users covering all six 
 `document_versions` and `audit_events` are protected by a SQLAlchemy `before_flush` guard in `backend/app/models/__init__.py`. Attempts to update or delete either entity through the application session raise an error. New uploads must create a new immutable version row; audit events must be appended rather than edited or removed.
 
 The schema ER diagram is available as Mermaid source in [`docs/schema-er.mmd`](docs/schema-er.mmd) and as a rendered image in [`docs/schema-er.png`](docs/schema-er.png).
+
+## Phase 3 authentication and RBAC
+
+Phase 3 adds demo-friendly JWT authentication under `/api/v1/auth`. The login screen loads seeded users from `/api/v1/auth/demo-users`; use the clearly labeled **DEMO LOGIN** picker with the password `demo-password`. The token embeds the user ID, name, email, role, department ID, and department name. The frontend stores the token only for the local demo session and provides a logout menu.
+
+Protected RBAC examples are available under `/api/v1/rbac`: administrator user management, department queue, executive summary, reviewer workspace, audit log, and authenticated identity. Unauthorized roles receive HTTP 403. Each seeded role lands on a different workspace view and the top navigation displays the current name, role, and department.
+
+Set `JWT_SECRET` in `.env` to a long random value for any deployment beyond the local synthetic demo. The default value in the example configuration is intentionally a placeholder.

@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str | None = None
     celery_result_backend: str | None = None
+    jwt_secret: str = "replace-this-demo-secret"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 480
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
