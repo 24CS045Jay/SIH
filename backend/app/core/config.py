@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     jwt_secret: str = "replace-this-demo-secret"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
+    storage_path: str = "./storage"
+    max_upload_size_mb: int = 25
+    low_ocr_confidence_threshold: float = 0.70
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

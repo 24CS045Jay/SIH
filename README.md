@@ -106,3 +106,17 @@ Phase 3 adds demo-friendly JWT authentication under `/api/v1/auth`. The login sc
 Protected RBAC examples are available under `/api/v1/rbac`: administrator user management, department queue, executive summary, reviewer workspace, audit log, and authenticated identity. Unauthorized roles receive HTTP 403. Each seeded role lands on a different workspace view and the top navigation displays the current name, role, and department.
 
 Set `JWT_SECRET` in `.env` to a long random value for any deployment beyond the local synthetic demo. The default value in the example configuration is intentionally a placeholder.
+
+## Phase 4 document repository and OCR pipeline
+
+Phase 4 adds protected upload and repository endpoints under `/api/v1/documents`. The upload endpoint accepts PDF, image, and text files, validates extension, MIME type, and the 25 MB size limit, rejects duplicate SHA-256 hashes, persists the original under the local demo object-storage directory, creates the document/version/file records, and returns HTTP 202 after enqueueing OCR.
+
+Run the worker alongside the API with:
+
+```bash
+celery -A app.jobs.celery_app.celery_app worker --loglevel=INFO --pool=solo
+```
+
+The worker transitions versions through `queued`, `processing`, and `review_ready` (or `failed`) and stores page-level OCR text and confidence in `pages`. PDFs use `pdftotext -layout` where available; text files are read directly; images use Tesseract where available. Low-confidence pages are preserved and explicitly flagged rather than hidden.
+
+The frontend’s **Documents** workspace provides drag-and-drop/file-picker upload, client-side validation feedback, searchable and status-filterable repository rows, status badges, source opening, page navigation, original-file viewing, OCR text, confidence percentages, and the amber “Low OCR confidence — needs review” warning. Every source view carries the required synthetic-data watermark.

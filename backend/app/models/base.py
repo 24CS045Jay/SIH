@@ -56,8 +56,10 @@ class Sensitivity(str, Enum):
 
 
 class VersionStatus(str, Enum):
+    QUEUED = "queued"
     PROCESSING = "processing"
     READY = "ready"
+    REVIEW_READY = "review_ready"
     FAILED = "failed"
     ARCHIVED = "archived"
 
