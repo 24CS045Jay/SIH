@@ -1,0 +1,29 @@
+flowchart LR
+    U[Users / Reviewers] --> W[Web Portal<br/>Three-column evidence workspace]
+    W --> G[API Gateway<br/>FastAPI /api/v1]
+    G --> I[Identity / RBAC]
+    G --> ING[Ingestion Service]
+    G --> AW[Alert / Action Workflow]
+    G --> RAG[RAG Retrieval]
+
+    ING --> OS[(Object Storage<br/>S3-compatible / local demo)]
+    ING --> OCR[OCR / Text Extraction]
+    OCR --> IP[Intelligence Pipeline<br/>classification · entities · actions · deadlines · summary · priority]
+    IP --> VI[(Vector Index)]
+    IP --> MDB[(Metadata / Actions DB<br/>PostgreSQL)]
+    RAG --> VI
+    RAG --> MDB
+    AW --> MDB
+    AW --> N[Notifications]
+    MDB --> AN[Analytics]
+    MDB --> AL[(Append-only Audit Log)]
+    I --> AL
+    IP --> AL
+    AW --> AL
+
+    classDef control fill:#e7f0f6,stroke:#245375,color:#102338
+    classDef store fill:#eef4f1,stroke:#18794e,color:#102338
+    classDef core fill:#f7f1df,stroke:#9a6700,color:#102338
+    class U,W,G,I,ING,AW,RAG control
+    class OS,VI,MDB,AL store
+    class OCR,IP,N,AN core
