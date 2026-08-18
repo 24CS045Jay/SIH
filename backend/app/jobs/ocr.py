@@ -29,7 +29,8 @@ def extract_pages(path: Path, mime_type: str) -> list[tuple[str, float]]:
         for page_no in range(1, pages + 1):
             result = subprocess.run(["pdftotext", "-layout", "-f", str(page_no), "-l", str(page_no), str(path), "-"], capture_output=True, text=True, check=False)
             text = result.stdout.strip()
-            extracted.append((text, 0.92 if len(text) >= 40 else 0.46))
+            low_quality_marker = any(marker in text.lower() for marker in ("low quality", "low-confidence", "faded ink", "faint stamp", "low-contrast"))
+            extracted.append((text, 0.46 if low_quality_marker or len(text) < 40 else 0.92))
         return extracted
     try:
         result = subprocess.run(["tesseract", str(path), "stdout"], capture_output=True, text=True, check=False)

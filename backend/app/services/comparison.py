@@ -12,7 +12,8 @@ def _paragraphs(pages: list[Page]) -> list[tuple[int, str]]:
     for page in pages:
         for paragraph in re.split(r"\n\s*\n|\n(?=\d+\.|[-*])", page.ocr_text or ""):
             text = " ".join(paragraph.split()).strip()
-            if text:
+            is_header = "KMRL DOCUMENT INTELLIGENCE PORTAL" in text or text.startswith("Fictional controlled copy") or re.fullmatch(r"Maintenance Manual V[23](?: — scanned supporting page)?", text, flags=re.IGNORECASE)
+            if text and not is_header:
                 rows.append((page.page_no, text))
     return rows
 
