@@ -79,6 +79,10 @@ api_v1.include_router(audit_router)
 app.mount(settings.api_v1_prefix, api_v1)
 
 
+@app.get("/health", include_in_schema=False)
+async def root_health() -> dict[str, str]:
+    return {"status": "ok", "service": settings.app_name, "environment": settings.environment}
+
 @app.get("/", include_in_schema=False)
 async def root() -> dict[str, str]:
     return {"service": settings.app_name, "docs": f"{settings.api_v1_prefix}/docs"}

@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
     storage_path: str = "./storage"
+    object_storage_endpoint: str | None = None
+    object_storage_bucket: str = "kmrl-demo"
+    object_storage_access_key: str | None = None
+    object_storage_secret_key: str | None = None
     max_upload_size_mb: int = 25
     low_ocr_confidence_threshold: float = 0.70
     demo_purge_after_judging: bool = False
