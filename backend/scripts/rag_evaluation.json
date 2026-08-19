@@ -1,0 +1,9 @@
+[
+  {"id":"maintenance_frequency","category":"positive_exact","question":"What changed in the brake inspection frequency?","expected_document_title":"Maintenance Manual","expected_refusal":false},
+  {"id":"maintenance_paraphrase","category":"positive_paraphrase","question":"How often must fleet units now receive brake inspections?","expected_document_title":"Maintenance Manual","expected_refusal":false},
+  {"id":"maintenance_checklist","category":"positive_section","question":"Who is affected by the new maintenance checklist and what must they do?","expected_document_title":"Maintenance Manual","expected_refusal":false},
+  {"id":"safety_deadline","category":"positive_date","question":"What deadline is stated in the safety circular?","expected_document_title":"Safety Circular","expected_refusal":false},
+  {"id":"unrelated_cpp","category":"negative_domain","question":"How do I implement a C++ binary search tree with templates and smart pointers?","expected_refusal":true},
+  {"id":"unrelated_weather","category":"negative_general","question":"What is today's weather forecast?","expected_refusal":true},
+  {"id":"fictional_fact","category":"negative_unsupported","question":"What is the approved cafeteria menu for next Tuesday?","expected_refusal":true}
+]

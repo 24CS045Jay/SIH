@@ -19,9 +19,23 @@ class Settings(BaseSettings):
     object_storage_bucket: str = "kmrl-demo"
     object_storage_access_key: str | None = None
     object_storage_secret_key: str | None = None
+    openai_api_key: str | None = None
+    openai_api_base: str | None = None
     max_upload_size_mb: int = 25
     low_ocr_confidence_threshold: float = 0.70
     demo_purge_after_judging: bool = False
+    embedding_provider: str = "openai"
+    embedding_model: str = "text-embedding-3-small"
+    rag_generation_provider: str = "openai"
+    rag_generation_model: str = "gpt-4o-mini"
+    rag_vector_top_k: int = 15
+    rag_keyword_top_k: int = 15
+    rag_final_top_k: int = 4
+    rag_min_relevance: float = 0.18
+    rag_min_rerank_score: float = 0.20
+    rag_document_scope_default: str = "document"
+    rag_low_ocr_penalty: float = 0.18
+    rag_diagnostics_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
