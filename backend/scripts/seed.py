@@ -59,7 +59,14 @@ def main() -> None:
         for name, email, role, department_name in DEMO_USERS:
             user = session.scalar(select(User).where(User.email == email))
             if user is None:
-                session.add(User(name=name, email=email, password_hash=demo_password_hash(), role=role, status=UserStatus.ACTIVE, department=departments[department_name]))
+                user = User(email=email)
+                session.add(user)
+            # Reconcile only the synthetic demo accounts; this keeps repeated seed runs safe and deterministic.
+            user.name = name
+            user.password_hash = demo_password_hash()
+            user.role = role
+            user.status = UserStatus.ACTIVE
+            user.department = departments[department_name]
         session.commit()
     print(f"Seeded {len(DEPARTMENT_NAMES)} departments and {len(DEMO_USERS)} synthetic demo users. Documents remain empty.")
 

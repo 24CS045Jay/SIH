@@ -36,6 +36,8 @@ uvicorn app.main:app --reload --port 8000
 
 The health endpoint is `GET http://localhost:8000/api/v1/health`. FastAPI documentation is available at `http://localhost:8000/api/v1/docs`.
 
+If `GET /api/v1/auth/demo-users` returns `404 Not Found`, first verify that port 8000 is serving this SIH backend rather than an older/stale process from another project. The current SIH backend mounts the route at `/api/v1/auth/demo-users` and returns the seeded safe user list with HTTP 200. Vite proxies `/api` to port 8000 by default; set `VITE_DEV_API_PROXY_TARGET` when the backend runs on another local port.
+
 ## Start the worker
 
 In another terminal, with the backend virtual environment active and Redis running:
