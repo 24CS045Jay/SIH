@@ -17,7 +17,7 @@ class StructuredChunk:
     parent_context: str | None = None
 
 
-_HEADING_RE = re.compile(r"^\s*((?:\d+(?:\.\d+)*|[A-Z][A-Z\s\-/]{3,}))\s*[.\-:]?\s+(.{3,})$")
+_HEADING_RE = re.compile(r"^\s*(\d+(?:\.\d+)*)\s*[.\-:]?\s+(.{3,})$")
 _LIST_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-z][.)])\s+")
 _TABLE_RE = re.compile(r"\|+|\s{2,}\S+\s{2,}\S+")
 
@@ -32,12 +32,12 @@ def _is_heading(line: str) -> bool:
         return False
     if stripped.isupper() and len(stripped.split()) <= 14:
         return True
-    return bool(_HEADING_RE.match(stripped))
+    return bool(_HEADING_RE.fullmatch(stripped))
 
 
 def _heading_parts(line: str) -> tuple[str | None, str]:
     stripped = line.strip()
-    match = _HEADING_RE.match(stripped)
+    match = _HEADING_RE.fullmatch(stripped)
     if match:
         return match.group(1), match.group(2).strip()
     return None, stripped

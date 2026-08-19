@@ -1,4 +1,7 @@
+from collections import defaultdict, deque
+from time import monotonic
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from uuid import UUID, uuid4
 import hashlib
 import json
@@ -22,6 +25,24 @@ from app.core.config import get_settings
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
+_rate_windows: dict[str, deque[float]] = defaultdict(deque)
+_RATE_LIMITS = {"/auth/login": (8, 60.0), "/documents/upload": (12, 60.0)}
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    path = request.url.path.removeprefix(settings.api_v1_prefix)
+    limit_config = _RATE_LIMITS.get(path)
+    if limit_config:
+        limit, window = limit_config
+        key = f"{path}:{request.client.host if request.client else 'unknown'}"
+        now = monotonic()
+        bucket = _rate_windows[key]
+        while bucket and now - bucket[0] >= window:
+            bucket.popleft()
+        if len(bucket) >= limit:
+            return JSONResponse(status_code=429, content={"detail": "Too many requests. Please wait and try again."}, headers={"Retry-After": str(int(window))})
+        bucket.append(now)
+    return await call_next(request)
 
 @app.middleware("http")
 async def trace_and_audit(request: Request, call_next):

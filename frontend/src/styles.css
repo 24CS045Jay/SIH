@@ -1,27 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 :root {
-  --navy-950: #0b1d33;
-  --navy-900: #102a47;
-  --navy-800: #173b5d;
-  --navy-700: #20577c;
-  --blue-600: #2f78a8;
-  --blue-100: #e7f0f7;
-  --ink: #122235;
-  --muted: #617284;
-  --line: #b7c5d0;
-  --line-strong: #27445e;
-  --surface: #fffdf8;
-  --surface-alt: #f3f6f8;
-  --canvas: #e8edf1;
-  --gold: #d29a2e;
+  --navy-950: #1a1b3a;
+  --navy-900: #242760;
+  --navy-800: #303879;
+  --navy-700: #3d4590;
+  --blue-600: #5660b4;
+  --blue-100: #eef0fb;
+  --ink: #1c1e2b;
+  --muted: #5c6273;
+  --line: #dfe1ec;
+  --line-strong: #242760;
+  --surface: #ffffff;
+  --surface-alt: #f7f7fb;
+  --canvas: #f5f6fb;
+  --gold: #c9820a;
   --gold-soft: #fff4d8;
   --green: #287a58;
   --green-soft: #e8f4ed;
-  --red: #a33b3b;
+  --red: #b42318;
   --red-soft: #faeaea;
-  --shadow: 5px 5px 0 rgba(11, 29, 51, .12);
-  --shadow-dark: 5px 5px 0 rgba(11, 29, 51, .55);
+  --shadow: 5px 5px 0 rgba(26, 27, 58, .12);
+  --shadow-dark: 5px 5px 0 rgba(26, 27, 58, .55);
   --ease-out: cubic-bezier(.23, 1, .32, 1);
   font-family: 'IBM Plex Sans', Inter, system-ui, sans-serif;
   color: var(--ink);
@@ -145,3 +145,28 @@ a { color: var(--blue-600); }
 @media (max-width: 900px) { .landing-page { grid-template-columns: 1fr; align-content: center; }.landing-copy { padding: 0; }.landing-page .login-card { justify-self: start; width: min(470px, 100%); }.dashboard-columns, .dashboard-columns.lower, .rag-result, .analytics-grid { grid-template-columns: 1fr; }.analytics-card.wide { grid-column: auto; }.viewer-grid, .diff-grid { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .topbar { min-height: 62px; padding: 0 14px; }.topbar-meta { display: none; }.portal-grid { display: block; }.left-nav { flex-direction: row; overflow-x: auto; padding: 9px; border-right: 0; border-bottom: 2px solid var(--line-strong); }.nav-label, .nav-footer { display: none; }.nav-item { min-width: max-content; margin: 0 3px; }.center-stream { padding: 20px 14px 32px; }.page-heading, .repository-heading, .viewer-heading, .chat-scope-bar { flex-direction: column; align-items: stretch; }.priority-grid, .analytics-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }.mini-metrics { grid-template-columns: repeat(2, 1fr); }.document-row { grid-template-columns: 1fr; }.field-label, .field-value, .edit-row { align-items: flex-start; flex-direction: column; }.edit-row input { width: 100%; }.edit-row .primary-button { width: 100%; }.public-page { padding: 18px; }.landing-page { gap: 32px; }.landing-copy h1 { font-size: 48px; }.login-card { padding: 24px; }.landing-visual { height: 190px; }.metro-coach { width: 120px; height: 40px; }.coach-windows { top: 11px; }.coach-windows i { height: 11px; }.coach-doors i { height: 18px; }.metro-train { left: -560px; }.footer { flex-direction: column; padding: 10px 14px; }.audit-toolbar { flex-direction: column; }.comparison-row { align-items: flex-start; flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }.metro-train { left: 18%; transform: none; }.nav-item:hover, .primary-button:hover, .secondary-button:hover, .signal-card:hover, .action-row:hover, .intelligence-row:hover, .comparison-row:hover { transform: none; } }
+
+html[data-theme="slate"] {
+  --navy-950: #111827;
+  --navy-900: #1f2937;
+  --navy-800: #273449;
+  --navy-700: #334155;
+  --blue-600: #0f9d58;
+  --blue-100: #e9f7ef;
+  --ink: #151a21;
+  --muted: #5b6572;
+  --line: #dde2e7;
+  --line-strong: #1f2937;
+  --surface: #ffffff;
+  --surface-alt: #f4f6f7;
+  --canvas: #f4f6f7;
+  --gold: #0f9d58;
+  --gold-soft: #e9f7ef;
+  --shadow: 5px 5px 0 rgba(17, 24, 39, .12);
+  --shadow-dark: 5px 5px 0 rgba(17, 24, 39, .55);
+}
+.theme-switch { display: inline-flex; gap: 2px; padding: 2px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.24); border-radius: 3px; }
+.theme-option { padding: 5px 7px; color: #d7e3eb; background: transparent; border: 0; font-size: 10px; font-weight: 700; }
+.theme-option.active { color: var(--navy-950); background: var(--gold); }
+.theme-option:focus-visible { outline-color: var(--gold); }
+html[data-theme="slate"] .synthetic-watermark, html[data-theme="slate"] .viewer-watermark { color: #6c541e; background: #fff4d8; border-color: #e3c982; }

@@ -70,3 +70,19 @@ The integration smoke test must finish with a closed action and audit event type
 ## Troubleshooting
 
 If migrations fail, inspect `docker compose logs backend` and verify that the database health check is healthy before restarting the backend. If uploads remain queued, inspect `docker compose logs worker`; the worker must use the same `kmrl_storage` volume and Redis URLs as the API. If the frontend loads but API calls fail, confirm that the Nginx proxy is using `/api/` and that the backend is healthy. Do not put real keys in the repository or in a committed Compose file.
+
+## Vercel frontend and Render backend
+
+The repository also includes `frontend/vercel.json` and `render.yaml` for a split deployment. In Vercel, set the project root directory to `frontend/`, use the Vite framework preset, and configure `VITE_API_BASE_URL` to the public Render API URL ending in `/api/v1`. The Vercel rewrite keeps client-side navigation working on refresh.
+
+In Render, create the services described by `render.yaml`: the Dockerized FastAPI web service, the Dockerized Celery worker, the managed PostgreSQL database, and the Redis service. Set `CORS_ORIGINS` on the API to the exact Vercel origin. Render uses `/api/v1/health` as the web-service health check and generated values for `JWT_SECRET`; no secrets belong in Git.
+
+Before a judge-facing rehearsal, run both the basic and detailed checks:
+
+```bash
+curl -fsS https://<render-api>/api/v1/health
+curl -fsS https://<render-api>/api/v1/health/detailed
+curl -fsS https://<render-api>/api/v1/auth/demo-users
+```
+
+The detailed response reports only `database`, `redis`, and `storage` states. It never includes connection strings, credentials, JWT secrets, or document text.
