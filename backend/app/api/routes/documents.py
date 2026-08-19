@@ -9,14 +9,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File as UploadFileDependency, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import selectinload
 from fastapi.responses import FileResponse
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.security import get_current_user, require_roles
 from app.db.session import get_db
 from app.jobs.ocr import process_document
-from app.models import Department, Document, DocumentClassification, DocumentVersion, File as StoredFile, MalwareStatus, Page, Role, Sensitivity, User, VersionStatus
+from app.models import Action, ActionEvent, Alert, Assignment, Change, Chunk, Comparison, Department, Document, DocumentClassification, DocumentVersion, ExtractedFact, File as StoredFile, MalwareStatus, Page, Role, Sensitivity, User, VersionStatus
 from app.services.access import can_access_document
 from app.schemas.documents import DocumentDetail, DocumentListItem, PageResponse, ProcessingStatusResponse, UploadResponse
 from app.services.storage import version_storage_path
@@ -40,7 +40,7 @@ def malware_scan(content: bytes) -> MalwareStatus:
 
 
 def list_item(document: Document, owner_name: str, version: DocumentVersion) -> DocumentListItem:
-    return DocumentListItem(id=document.id, title=document.title, type=document.type, owner_name=owner_name, classification=document.classification.value, sensitivity=document.sensitivity.value, created_at=document.created_at, version_id=version.id, version_label=version.version_label, status=version.status.value, uploaded_at=version.uploaded_at)
+    return DocumentListItem(id=document.id, title=document.title, type=document.type, owner_name=owner_name, classification=document.classification.value, sensitivity=document.sensitivity.value, created_at=document.created_at, version_id=version.id, version_label=version.version_label, status=version.status.value, uploaded_at=version.uploaded_at, processing_stage=version.processing_stage, error_message=version.error_message)
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=202)
@@ -88,7 +88,14 @@ async def upload_document(file: UploadFile = UploadFileDependency(...), current_
     path.write_bytes(content)
     db.add(StoredFile(version_id=version.id, object_key=str(path), mime_type=file.content_type or "application/octet-stream", size=len(content), malware_status=malware_status))
     await db.commit()
-    process_document.delay(str(version.id))
+    try:
+        process_document.delay(str(version.id))
+    except Exception as exc:
+        version.status = VersionStatus.FAILED
+        version.processing_stage = "failed"
+        version.error_message = "OCR queue unavailable; upload was stored but processing could not be started."
+        await db.commit()
+        raise HTTPException(status_code=503, detail="OCR queue unavailable. The upload was stored as failed and can be retried.") from exc
     return UploadResponse(document_id=document.id, version_id=version.id, status=VersionStatus.QUEUED.value, message="Upload accepted and OCR job queued.")
 
 
@@ -130,7 +137,71 @@ async def document_status(document_id: UUID, current_user: dict = Depends(get_cu
     if document is None: raise HTTPException(status_code=404, detail="Document not found")
     if not can_access_document(document, current_user): raise HTTPException(status_code=403, detail="Document is outside your access scope")
     pages = (await db.execute(select(Page).where(Page.version_id == version.id))).scalars().all()
-    return ProcessingStatusResponse(version_id=version.id, status=version.status.value, page_count=len(pages), low_confidence_pages=sum(1 for page in pages if (page.ocr_confidence or 0) < get_settings().low_ocr_confidence_threshold))
+    return ProcessingStatusResponse(version_id=version.id, status=version.status.value, processing_stage=version.processing_stage, page_count=len(pages), low_confidence_pages=sum(1 for page in pages if (page.ocr_confidence or 0) < get_settings().low_ocr_confidence_threshold), error_message=version.error_message)
+
+
+@router.post("/{document_id}/retry", status_code=202)
+async def retry_document(document_id: UUID, current_user: dict = Depends(require_roles(Role.SYSTEM_ADMINISTRATOR, Role.DOCUMENT_ADMINISTRATOR, Role.REVIEWER)), db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    version = await db.scalar(select(DocumentVersion).where(DocumentVersion.document_id == document_id).order_by(DocumentVersion.uploaded_at.desc()))
+    document = await db.scalar(select(Document).where(Document.id == document_id))
+    if version is None or document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not can_access_document(document, current_user):
+        raise HTTPException(status_code=403, detail="Document is outside your access scope")
+    if version.status != VersionStatus.FAILED:
+        raise HTTPException(status_code=409, detail="Only failed documents can be retried")
+    version.status = VersionStatus.QUEUED
+    version.processing_stage = "queued"
+    version.error_message = None
+    await db.commit()
+    process_document.delay(str(version.id))
+    return {"document_id": str(document.id), "version_id": str(version.id), "status": VersionStatus.QUEUED.value}
+
+
+@router.delete("/{document_id}", status_code=204, response_model=None)
+async def delete_document(document_id: UUID, current_user: dict = Depends(require_roles(Role.SYSTEM_ADMINISTRATOR, Role.DOCUMENT_ADMINISTRATOR)), db: AsyncSession = Depends(get_db)) -> None:
+    document = await db.scalar(select(Document).where(Document.id == document_id))
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not can_access_document(document, current_user):
+        raise HTTPException(status_code=403, detail="Document is outside your access scope")
+    version_ids = list((await db.execute(select(DocumentVersion.id).where(DocumentVersion.document_id == document_id))).scalars().all())
+    if not version_ids:
+        await db.execute(delete(Document).where(Document.id == document_id))
+        await db.commit()
+        return None
+    file_paths = list((await db.execute(select(StoredFile.object_key).where(StoredFile.version_id.in_(version_ids)))).scalars().all())
+    comparison_ids = list((await db.execute(select(Comparison.id).where((Comparison.old_version_id.in_(version_ids)) | (Comparison.new_version_id.in_(version_ids))))).scalars().all())
+    action_ids = list((await db.execute(select(Action.id).where(Action.source_version_id.in_(version_ids)))).scalars().all())
+    alert_ids = list((await db.execute(select(Alert.id).where(Alert.source_version_id.in_(version_ids)))).scalars().all())
+    if alert_ids or action_ids:
+        await db.execute(delete(Assignment).where((Assignment.alert_id.in_(alert_ids)) | (Assignment.action_id.in_(action_ids))))
+    if action_ids:
+        await db.execute(delete(ActionEvent).where(ActionEvent.action_id.in_(action_ids)))
+        await db.execute(delete(Action).where(Action.id.in_(action_ids)))
+    if alert_ids:
+        await db.execute(delete(Alert).where(Alert.id.in_(alert_ids)))
+    if comparison_ids:
+        await db.execute(delete(Change).where(Change.comparison_id.in_(comparison_ids)))
+        await db.execute(delete(Comparison).where(Comparison.id.in_(comparison_ids)))
+    await db.execute(delete(ExtractedFact).where(ExtractedFact.version_id.in_(version_ids)))
+    await db.execute(delete(Chunk).where(Chunk.version_id.in_(version_ids)))
+    await db.execute(delete(Page).where(Page.version_id.in_(version_ids)))
+    await db.execute(delete(StoredFile).where(StoredFile.version_id.in_(version_ids)))
+    await db.execute(delete(DocumentVersion).where(DocumentVersion.id.in_(version_ids)))
+    await db.execute(delete(Document).where(Document.id == document_id))
+    await db.commit()
+    for object_key in file_paths:
+        try:
+            path = Path(object_key)
+            if path.exists():
+                path.unlink()
+            parent = path.parent
+            if parent.exists() and not any(parent.iterdir()):
+                parent.rmdir()
+        except OSError:
+            continue
+    return None
 
 
 @router.get("/{document_id}/source")

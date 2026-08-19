@@ -23,6 +23,8 @@ class DocumentListItem(BaseModel):
     version_label: str
     status: str
     uploaded_at: datetime
+    processing_stage: str = "queued"
+    error_message: str | None = None
 
 
 class PageResponse(BaseModel):
@@ -43,5 +45,7 @@ class DocumentDetail(BaseModel):
 class ProcessingStatusResponse(BaseModel):
     version_id: UUID
     status: str
+    processing_stage: str = "queued"
     page_count: int
     low_confidence_pages: int
+    error_message: str | None = None

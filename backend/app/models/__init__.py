@@ -10,7 +10,7 @@ def enforce_immutable_and_append_only(session: Session, flush_context: object, i
     for obj in session.dirty:
         if isinstance(obj, DocumentVersion):
             changed = {attribute.key for attribute in inspect(obj).attrs if attribute.history.has_changes()}
-            if changed - {"status"}:
+            if changed - {"status", "processing_stage", "error_message"}:
                 raise ValueError("document_versions are immutable; only processing status transitions are allowed")
         if isinstance(obj, AuditEvent):
             raise ValueError("audit_events are append-only and cannot be updated")

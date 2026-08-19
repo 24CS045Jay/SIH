@@ -62,6 +62,8 @@ class DocumentVersion(UUIDPrimaryKeyMixin, Base):
     hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, index=True)
     status: Mapped[VersionStatus] = mapped_column(enum_type(VersionStatus), nullable=False, default=VersionStatus.PROCESSING, index=True)
+    processing_stage: Mapped[str] = mapped_column(String(40), nullable=False, default="queued", index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     document: Mapped["Document"] = relationship(back_populates="versions")
     files: Mapped[list["File"]] = relationship(back_populates="version", cascade="save-update, merge", passive_deletes=True)
     pages: Mapped[list["Page"]] = relationship(back_populates="version", cascade="save-update, merge", passive_deletes=True)
