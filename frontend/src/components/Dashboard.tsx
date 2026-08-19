@@ -18,7 +18,7 @@ type IntelligenceItem = { version_id: string; title: string; version_label: stri
 type Summary = { viewer: Viewer; priority_strip: { counts: Record<string, number>; reason_codes: Record<string, number> }; urgent_alerts: AlertItem[]; my_actions: { counts: Record<string, number>; items: ActionItem[] }; new_intelligence: IntelligenceItem[]; department_queue: { department: string; alerts: number; actions: number; total: number }[]; trust: TrustEvidence | null };
 type Analytics = { processing_volume: { date: string; count: number }[]; correction_rate: { feedback_count: number; prediction_count: number; rate: number; by_reason: { reason: string; count: number }[] }; action_ageing: { status: string; count: number; average_days: number }[]; department_queue: { department: string; alerts: number; actions: number; total: number }[]; generated_at: string };
 
-const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const API = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 const priorityOrder = ["critical", "high", "medium", "low"];
 const labels: Record<string, string> = { critical: "Critical", high: "High", medium: "Medium", low: "Low", in_progress: "In progress", recently_completed: "Recently completed", due_soon: "Due soon", overdue: "Overdue", blocked: "Blocked" };
 

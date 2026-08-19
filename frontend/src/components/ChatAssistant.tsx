@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const API = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 
 type Citation = { citation_id: string; document_title: string; page_no: number; section_number?: string | null; section_title?: string | null; quote: string; document_id: string; version_id: string };
 type ChatResponse = { answer: string; refusal: boolean; disclaimer: string; citations: Citation[]; scope?: string; refusal_reason?: string | null; diagnostics?: { candidate_count?: number; latency_ms?: number } };
@@ -8,7 +8,7 @@ type ChatResponse = { answer: string; refusal: boolean; disclaimer: string; cita
 type Props = { token: string; currentDocumentId?: string; currentDocumentTitle?: string };
 
 function RailBot() {
-  return <div className="railbot" aria-hidden="true"><span className="railbot-antenna" /><div className="railbot-face"><i /><i /><b /></div><span className="railbot-wheel wheel-left" /><span className="railbot-wheel wheel-right" /></div>;
+  return <div className="railbot" aria-hidden="true"><span className="railbot-signal" /><span className="railbot-core">R1</span><span className="railbot-label">EVIDENCE LINK</span></div>;
 }
 
 export default function ChatAssistant({ token, currentDocumentId, currentDocumentTitle }: Props) {
