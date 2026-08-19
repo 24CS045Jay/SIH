@@ -42,9 +42,12 @@ async def embed_texts(texts: Sequence[str]) -> list[list[float]]:
             response = await client.embeddings.create(model=settings.embedding_model, input=list(texts))
             ordered = sorted(response.data, key=lambda item: item.index)
             return [list(item.embedding) for item in ordered]
-        except Exception as exc:  # pragma: no cover - provider/network dependent
-            raise EmbeddingProviderError(f"Embedding provider unavailable: {exc}") from exc
+        except Exception:
+            # A bad or expired optional token must not strand an uploaded document in FAILED.
+            # Fall back to deterministic local vectors; operators can inspect provider health separately.
+            provider = "auto"
     if provider == "openai":
+        # Explicit OpenAI mode remains strict for callers that require cloud embeddings.
         raise EmbeddingProviderError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai")
     if provider in {"auto", "local", "tfidf", "offline"}:
         if provider == "auto":

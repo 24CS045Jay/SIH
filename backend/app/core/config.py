@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     app_name: str = "KMRL Document Intelligence & Action Portal"
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"
     database_url: str = "postgresql+asyncpg://kmrl:kmrl@localhost:5432/kmrl_portal"
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str | None = None
@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 25
     low_ocr_confidence_threshold: float = 0.70
     demo_purge_after_judging: bool = False
-    embedding_provider: str = "openai"
+    embedding_provider: str = "auto"
     embedding_model: str = "text-embedding-3-small"
-    rag_generation_provider: str = "openai"
+    rag_generation_provider: str = "extractive"
     rag_generation_model: str = "gpt-4o-mini"
     rag_vector_top_k: int = 15
     rag_keyword_top_k: int = 15

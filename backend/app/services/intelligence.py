@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from datetime import datetime
@@ -89,5 +90,10 @@ def llm_intelligence(pages: list[tuple[int, str]]) -> IntelligenceResult:
 
 def analyze_pages(pages: list[tuple[int, str]]) -> IntelligenceResult:
     if os.getenv("INTELLIGENCE_LLM_ENABLED", "false").lower() == "true":
-        return llm_intelligence(pages)
+        try:
+            return llm_intelligence(pages)
+        except Exception as exc:
+            # Invalid/expired optional LLM credentials must not fail OCR or indexing.
+            # Keep the fallback source-grounded and visible in server logs.
+            logging.getLogger(__name__).warning("LLM intelligence unavailable; using deterministic fallback: %s", exc)
     return IntelligenceResult.model_validate(deterministic_intelligence(pages).model_dump())
