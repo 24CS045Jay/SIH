@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File as UploadFileDependency, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File as UploadFileDependency, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.security import get_current_user, require_roles
 from app.db.session import get_db
-from app.jobs.ocr import process_document
+from app.jobs.ocr import process_document, process_version
 from app.models import Department, Document, DocumentClassification, DocumentVersion, File as StoredFile, Page, Role, Sensitivity, User, VersionStatus
 from app.schemas.documents import DocumentDetail, DocumentListItem, PageResponse, ProcessingStatusResponse, UploadResponse
 from app.services.storage import version_storage_path
@@ -29,7 +29,7 @@ def list_item(document: Document, owner_name: str, version: DocumentVersion) -> 
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=202)
-async def upload_document(file: UploadFile = UploadFileDependency(...), current_user: dict = Depends(require_roles(Role.SYSTEM_ADMINISTRATOR, Role.DOCUMENT_ADMINISTRATOR, Role.REVIEWER, Role.DEPARTMENT_USER)), db: AsyncSession = Depends(get_db)) -> UploadResponse:
+async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = UploadFileDependency(...), current_user: dict = Depends(require_roles(Role.SYSTEM_ADMINISTRATOR, Role.DOCUMENT_ADMINISTRATOR, Role.REVIEWER, Role.DEPARTMENT_USER)), db: AsyncSession = Depends(get_db)) -> UploadResponse:
     filename = file.filename or "uploaded-file"
     extension = Path(filename).suffix.lower()
     if extension not in ALLOWED_EXTENSIONS or (file.content_type and file.content_type not in ALLOWED_MIME):
@@ -68,13 +68,13 @@ async def upload_document(file: UploadFile = UploadFileDependency(...), current_
     path.write_bytes(content)
     db.add(StoredFile(version_id=version.id, object_key=str(path), mime_type=file.content_type or "application/octet-stream", size=len(content)))
     await db.commit()
-    process_document.delay(str(version.id))
+    background_tasks.add_task(process_version, str(version.id))
     return UploadResponse(document_id=document.id, version_id=version.id, status=VersionStatus.QUEUED.value, message="Upload accepted and OCR job queued.")
 
 
 @router.get("", response_model=list[DocumentListItem])
 async def list_documents(search: str | None = None, document_type: str | None = Query(default=None, alias="type"), status_filter: str | None = Query(default=None, alias="status"), department_id: UUID | None = None, from_date: datetime | None = None, to_date: datetime | None = None, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> list[DocumentListItem]:
-    latest_uploaded = select(func.max(DocumentVersion.uploaded_at)).where(DocumentVersion.document_id == Document.id).scalar_subquery()
+    latest_uploaded = select(func.max(DocumentVersion.uploaded_at)).where(DocumentVersion.document_id == Document.id).correlate(Document).scalar_subquery()
     query = select(Document, User.name, DocumentVersion).join(User, Document.owner_id == User.id).join(DocumentVersion, DocumentVersion.document_id == Document.id).where(DocumentVersion.uploaded_at == latest_uploaded)
     if search: query = query.where(Document.title.ilike(f"%{search}%"))
     if document_type: query = query.where(Document.type == document_type)

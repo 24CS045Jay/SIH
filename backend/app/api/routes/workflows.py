@@ -105,7 +105,7 @@ async def list_actions(owner_id: UUID | None = None, status: ActionStatus | None
     if owner_id: query = query.where(Action.owner_id == owner_id)
     if status: query = query.where(Action.status == status)
     if priority: query = query.where(Action.priority == priority)
-    if overdue: query = query.where(Action.due_at < datetime.now(timezone.utc), Action.status.not_in([ActionStatus.COMPLETED, ActionStatus.CLOSED, ActionStatus.REJECTED]))
+    if overdue: query = query.where(Action.due_at < datetime.now(timezone.utc), Action.status.notin_([ActionStatus.COMPLETED, ActionStatus.CLOSED, ActionStatus.REJECTED]))
     query = query.options(selectinload(Action.events))
     actions = (await db.execute(query)).scalars().unique().all()
     for action in actions: await mark_overdue(action, db, user_uuid(current_user))

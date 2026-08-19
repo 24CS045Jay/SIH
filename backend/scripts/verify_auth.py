@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 from urllib.request import Request, urlopen
 
-BASE = "http://127.0.0.1:8020/api/v1"
+BASE = os.getenv("KMRL_API_BASE", "http://127.0.0.1:8000/api/v1")
 
 
 def request(path: str, method: str = "GET", payload: dict | None = None, token: str | None = None) -> tuple[int, dict]:

@@ -13,7 +13,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("audit_events", sa.Column("detail", sa.JSON(), nullable=False, server_default=sa.text("'{}'::json")))
+    default_expr = sa.text("'{}'::json") if op.get_bind().dialect.name == "postgresql" else sa.text("'{}'")
+    op.add_column("audit_events", sa.Column("detail", sa.JSON(), nullable=False, server_default=default_expr))
     op.alter_column("audit_events", "detail", server_default=None)
 
 

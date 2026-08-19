@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # PostgreSQL-only — SQLite is not supported in any environment.
     database_url: str = "postgresql+asyncpg://kmrl:kmrl@localhost:5432/kmrl_portal"
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str | None = None
@@ -17,6 +18,10 @@ class Settings(BaseSettings):
     storage_path: str = "./storage"
     max_upload_size_mb: int = 25
     low_ocr_confidence_threshold: float = 0.70
+    intelligence_llm_enabled: bool = False
+    intelligence_model: str = "gpt-4o-mini"
+    openai_api_key: str | None = None
+    openai_api_base: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

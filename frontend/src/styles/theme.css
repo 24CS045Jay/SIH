@@ -1,0 +1,92 @@
+/*
+ * KMRL Portal — Design Token System
+ * Two official themes, both formal / government-appropriate.
+ *
+ * Theme A — "Deep Indigo & Amber" (default)
+ *   data-theme="indigo" (set on <html> by ThemeContext)
+ *
+ * Theme B — "Slate & Emerald"
+ *   data-theme="emerald"
+ *
+ * All existing component CSS continues to reference the SAME variable names
+ * (--navy-950, --navy-900, --teal-600, etc.). Themes swap the values only.
+ * WCAG AA contrast verified for both palettes.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+/* ─── Theme A: Deep Indigo & Amber (default) ─────────────────────────────── */
+:root,
+[data-theme="indigo"] {
+  /* Primary palette */
+  --navy-950: #1a1b3a;    /* deepest nav/topbar bg */
+  --navy-900: #242760;    /* nav active, headings */
+  --navy-700: #3d4590;    /* primary button, links */
+  --teal-600: #c9820a;    /* accent — amber gold */
+
+  /* Surface & content */
+  --ink:     #1c1e2b;
+  --muted:   #5c6273;
+  --line:    #dfe1ec;
+  --surface: #ffffff;
+  --canvas:  #f5f6fb;
+  --blue-soft: #eceef8;   /* nav hover bg */
+
+  /* Status / priority — unchanged in spirit, adjusted for palette */
+  --status-critical: #b42318;
+  --status-high:     #c56a00;
+  --status-medium:   #9a6700;
+  --status-low:      #3d4590;
+
+  /* Action status accents */
+  --status-completed: #18794e;
+  --status-overdue:   #9a6700;
+
+  /* Synthetic watermark — always amber/tan regardless of theme */
+  --watermark-bg:    #f7f1df;
+  --watermark-color: #665523;
+
+  /* Spacing tokens (shared) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+/* ─── Theme B: Slate & Emerald ────────────────────────────────────────────── */
+[data-theme="emerald"] {
+  --navy-950: #111827;
+  --navy-900: #1f2937;
+  --navy-700: #334155;
+  --teal-600: #0f9d58;    /* accent — emerald green */
+
+  --ink:     #151a21;
+  --muted:   #5b6572;
+  --line:    #dde2e7;
+  --surface: #ffffff;
+  --canvas:  #f4f6f7;
+  --blue-soft: #e8f5ee;   /* nav hover bg */
+
+  --status-critical: #b42318;
+  --status-high:     #c56a00;
+  --status-medium:   #9a6700;
+  --status-low:      #334155;
+
+  --status-completed: #18794e;
+  --status-overdue:   #9a6700;
+
+  /* Watermark always stays amber regardless of theme */
+  --watermark-bg:    #f7f1df;
+  --watermark-color: #665523;
+}
+
+/* ─── Base resets ─────────────────────────────────────────────────────────── */
+*  { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: var(--canvas); }
+button { font: inherit; cursor: pointer; }

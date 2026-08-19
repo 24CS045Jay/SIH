@@ -1,0 +1,88 @@
+/* RAG Assistant */
+
+.rag-assistant { display: grid; gap: 18px; }
+.rag-form {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 16px;
+}
+.rag-form textarea {
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid #aebdc8;
+  border-radius: 4px;
+  padding: 12px;
+  font: inherit;
+  color: var(--ink);
+}
+.rag-demo-prompts { display: flex; gap: 16px; flex-wrap: wrap; }
+.rag-recent-searches {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.rag-recent-searches strong { font-size: 11px; color: var(--navy-900); }
+.rag-recent-searches button {
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--navy-700);
+  cursor: pointer;
+}
+.rag-recent-searches button:hover { background: var(--blue-soft); }
+
+.rag-result {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+.rag-answer {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--teal-600);
+  background: #eef8f7;
+  padding: 18px;
+  min-height: 180px;
+}
+.rag-answer p:not(.eyebrow) { line-height: 1.65; margin: 8px 0 18px; }
+.rag-answer strong { font-size: 11px; color: var(--muted); }
+.rag-answer.refusal {
+  border-color: #e2c58c;
+  border-left-color: var(--status-medium);
+  background: #fff6df;
+}
+
+.citation-panel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+.citation-panel h3 { margin: 0; color: var(--navy-900); }
+.citation-card {
+  border: 1px solid var(--line);
+  background: #f8fafb;
+  padding: 11px;
+  display: grid;
+  gap: 5px;
+}
+.citation-card strong { font-size: 12px; color: var(--navy-900); }
+.citation-card span   { font-size: 11px; color: var(--muted); }
+.citation-card p      { margin: 3px 0; font-size: 12px; line-height: 1.5; color: var(--ink); }
+.citation-card a      { font-size: 11px; color: var(--teal-600); font-weight: 600; text-decoration: none; }
+.citation-card a:hover { text-decoration: underline; }
+
+@media (max-width: 900px) { .rag-result { grid-template-columns: 1fr; } }
+@media (max-width: 680px) {
+  .rag-demo-prompts { display: grid; gap: 8px; }
+  .rag-demo-prompts .text-button { text-align: left; }
+}

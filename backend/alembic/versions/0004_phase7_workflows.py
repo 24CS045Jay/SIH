@@ -14,17 +14,27 @@ depends_on = None
 
 
 def upgrade() -> None:
-    for value in ["draft", "open", "blocked", "overdue", "closed", "rejected"]:
-        op.execute(f"ALTER TYPE actionstatus ADD VALUE IF NOT EXISTS '{value}'")
-    alert_status = postgresql.ENUM("draft", "needs_review", "approved", "assigned", "acknowledged", "in_progress", "completed", "verified_closed", "rejected", name="alertstatus")
-    alert_status.create(op.get_bind(), checkfirst=True)
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        for value in ["draft", "open", "blocked", "overdue", "closed", "rejected"]:
+            op.execute(f"ALTER TYPE actionstatus ADD VALUE IF NOT EXISTS '{value}'")
+        alert_status = postgresql.ENUM("draft", "needs_review", "approved", "assigned", "acknowledged", "in_progress", "completed", "verified_closed", "rejected", name="alertstatus")
+        alert_status.create(bind, checkfirst=True)
+        reviewer_col = sa.Column("reviewer_id", postgresql.UUID(as_uuid=True), nullable=True)
+        status_col = sa.Column("status", sa.Enum(name="alertstatus"), nullable=False, server_default="draft")
+        verified_by_col = sa.Column("verified_by", postgresql.UUID(as_uuid=True), nullable=True)
+    else:
+        reviewer_col = sa.Column("reviewer_id", sa.Uuid(), nullable=True)
+        status_col = sa.Column("status", sa.String(50), nullable=False, server_default="draft")
+        verified_by_col = sa.Column("verified_by", sa.Uuid(), nullable=True)
+
     op.add_column("alerts", sa.Column("title", sa.String(length=500), nullable=False, server_default="AI-generated alert"))
     op.add_column("alerts", sa.Column("suggested_department", sa.String(length=160), nullable=True))
     op.add_column("alerts", sa.Column("suggested_action", sa.Text(), nullable=True))
     op.add_column("alerts", sa.Column("deadline", sa.DateTime(timezone=True), nullable=True))
     op.add_column("alerts", sa.Column("source_excerpt", sa.Text(), nullable=True))
-    op.add_column("alerts", sa.Column("reviewer_id", postgresql.UUID(as_uuid=True), nullable=True))
-    op.add_column("alerts", sa.Column("status", sa.Enum(name="alertstatus"), nullable=False, server_default="draft"))
+    op.add_column("alerts", reviewer_col)
+    op.add_column("alerts", status_col)
     op.create_foreign_key("fk_alerts_reviewer_id_users", "alerts", "users", ["reviewer_id"], ["id"], ondelete="SET NULL")
     for table, column in [("alerts", "suggested_department"), ("alerts", "deadline"), ("alerts", "reviewer_id"), ("alerts", "status")]:
         op.create_index(f"ix_{table}_{column}", table, [column])
@@ -32,7 +42,7 @@ def upgrade() -> None:
     op.add_column("actions", sa.Column("completion_evidence", sa.Text(), nullable=True))
     op.add_column("actions", sa.Column("acknowledged_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("actions", sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("actions", sa.Column("verified_by", postgresql.UUID(as_uuid=True), nullable=True))
+    op.add_column("actions", verified_by_col)
     op.add_column("actions", sa.Column("verified_at", sa.DateTime(timezone=True), nullable=True))
     op.create_foreign_key("fk_actions_verified_by_users", "actions", "users", ["verified_by"], ["id"], ondelete="SET NULL")
     for column in ["acknowledged_at", "completed_at", "verified_by", "verified_at"]:

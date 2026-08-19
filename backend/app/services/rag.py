@@ -63,19 +63,20 @@ def chunk_text(text: str, size: int = 900, overlap: int = 120) -> list[str]:
     return [item for item in chunks if item]
 
 
-async def build_chunks(session: AsyncSession, version_id: UUID) -> int:
-    version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == version_id))
+async def build_chunks(session: AsyncSession, version_id: UUID | str) -> int:
+    vid = UUID(str(version_id)) if isinstance(version_id, str) else version_id
+    version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == vid))
     if version is None: return 0
     doc_row = (await session.execute(select(Document, User).join(User, Document.owner_id == User.id).where(Document.id == version.document_id))).first()
     if doc_row is None: return 0
     document, owner = doc_row
-    pages = (await session.execute(select(Page).where(Page.version_id == version_id).order_by(Page.page_no))).scalars().all()
-    await session.execute(delete(Chunk).where(Chunk.version_id == version_id))
+    pages = (await session.execute(select(Page).where(Page.version_id == vid).order_by(Page.page_no))).scalars().all()
+    await session.execute(delete(Chunk).where(Chunk.version_id == vid))
     count = 0
     for page in pages:
         for text in chunk_text(page.ocr_text or ""):
             scope = {"roles": [role.value for role in Role], "department_id": str(owner.department_id) if owner.department_id else None, "sensitivity": document.sensitivity.value}
-            session.add(Chunk(version_id=version_id, page_id=page.id, text=text, embedding_ref=json.dumps(embedding(text), separators=(",", ":")), access_scope=scope))
+            session.add(Chunk(version_id=vid, page_id=page.id, text=text, embedding_ref=json.dumps(embedding(text), separators=(",", ":")), access_scope=scope))
             count += 1
     await session.flush()
     return count

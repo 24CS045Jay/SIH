@@ -1,0 +1,9 @@
+Maintenance Manual — Brake Inspection Frequency
+
+Phase 8 verification batch: 1787068501.019981
+
+Brake inspection frequency: inspect every 30 days for fleet units.
+
+Maintenance checklist: use the standard brake checklist and sign the inspection sheet.
+
+Deadline: submit inspection records within 30 days of the maintenance circular.

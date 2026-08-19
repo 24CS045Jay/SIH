@@ -1,0 +1,152 @@
+/* Admin panel & Audit Log (Module 6) */
+
+.admin-panel { display: grid; gap: 24px; }
+
+/* ── Admin section tabs ───────────────────────────────────────────────────── */
+.admin-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.admin-section-header {
+  background: var(--canvas);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.admin-section-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--navy-950);
+}
+.admin-section-body { padding: 16px 18px; }
+
+/* ── User table ───────────────────────────────────────────────────────────── */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.admin-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: var(--canvas);
+  border-bottom: 2px solid var(--line);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.admin-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  vertical-align: middle;
+}
+.admin-table tr:hover td { background: var(--canvas); }
+.admin-table select {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 11px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* ── Config view ──────────────────────────────────────────────────────────── */
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.config-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+.config-row .config-key { color: var(--muted); font-family: monospace; font-size: 11px; }
+.config-row .config-val { color: var(--ink); font-weight: 600; }
+
+/* ── Department tree ──────────────────────────────────────────────────────── */
+.dept-tree { display: grid; gap: 4px; }
+.dept-node {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px;
+}
+.dept-node.child { margin-left: 20px; border-left: 3px solid var(--line); }
+.dept-add-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dept-add-form input {
+  flex: 1;
+  border: 1px solid #aebdc8;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/* ── Audit log table ──────────────────────────────────────────────────────── */
+.audit-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.audit-filters input, .audit-filters select {
+  border: 1px solid #aebdc8;
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+}
+.audit-table-wrap { overflow-x: auto; }
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.audit-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: var(--navy-900);
+  color: white;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.audit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-family: monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.audit-table tr:nth-child(even) td { background: var(--canvas); }
+
+@media (max-width: 900px) {
+  .config-grid { grid-template-columns: 1fr; }
+}

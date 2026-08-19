@@ -1,0 +1,63 @@
+/* Intelligence card */
+
+.intelligence-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 18px;
+}
+.intelligence-card h3 { margin: 0; color: var(--navy-950); }
+.intelligence-section {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.intelligence-section h4 {
+  margin: 0 0 4px;
+  color: var(--navy-900);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.intelligence-field {
+  display: grid;
+  gap: 6px;
+  background: #f8fafb;
+  border: 1px solid var(--line);
+  padding: 11px;
+}
+.field-label, .field-value, .field-actions, .edit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.field-label strong { color: var(--navy-900); font-size: 12px; }
+.field-label .confidence-badge {
+  padding: 3px 6px;
+  border-left: 0;
+  background: #eef8f7;
+  font-size: 10px;
+}
+.field-value { align-items: flex-start; }
+.field-value > span { font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+.edit-row input {
+  flex: 1;
+  border: 1px solid #aebdc8;
+  border-radius: 4px;
+  padding: 8px;
+  font: inherit;
+}
+.edit-row .primary-button { padding: 8px 10px; font-size: 11px; }
+.intelligence-card .confidence-badge { white-space: nowrap; }
+.intelligence-card .form-error { margin: 0; }
+
+@media (max-width: 760px) {
+  .field-label, .field-value, .edit-row { align-items: flex-start; flex-direction: column; }
+  .field-actions { justify-content: flex-start; }
+  .edit-row { width: 100%; }
+  .edit-row input { width: 100%; }
+  .edit-row .primary-button { width: 100%; }
+}

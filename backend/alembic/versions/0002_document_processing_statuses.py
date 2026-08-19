@@ -12,8 +12,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE versionstatus ADD VALUE IF NOT EXISTS 'queued' BEFORE 'processing'")
-    op.execute("ALTER TYPE versionstatus ADD VALUE IF NOT EXISTS 'review_ready' AFTER 'ready'")
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute("ALTER TYPE versionstatus ADD VALUE IF NOT EXISTS 'queued' BEFORE 'processing'")
+        op.execute("ALTER TYPE versionstatus ADD VALUE IF NOT EXISTS 'review_ready' AFTER 'ready'")
 
 
 def downgrade() -> None:

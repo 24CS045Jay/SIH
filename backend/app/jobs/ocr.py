@@ -6,6 +6,8 @@ from pathlib import Path
 
 from sqlalchemy import delete, select
 
+from uuid import UUID
+
 from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
 from app.jobs.celery_app import celery_app
@@ -20,12 +22,24 @@ def extract_pages(path: Path, mime_type: str) -> list[tuple[str, float]]:
     if mime_type == "text/plain" or path.suffix.lower() in {".txt", ".md", ".csv"}:
         return [(path.read_text(errors="replace"), 0.98)]
     if mime_type == "application/pdf" or path.suffix.lower() == ".pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(str(path))
+            extracted: list[tuple[str, float]] = []
+            for page in reader.pages:
+                text = (page.extract_text() or "").strip()
+                low_quality_marker = any(marker in text.lower() for marker in ("low quality", "low-confidence", "faded ink", "faint stamp", "low-contrast"))
+                extracted.append((text, 0.46 if low_quality_marker or len(text) < 40 else 0.92))
+            if extracted and any(t for t, _ in extracted):
+                return extracted
+        except Exception:
+            pass
         info = subprocess.run(["pdfinfo", str(path)], capture_output=True, text=True, check=False)
         pages = 1
         for line in info.stdout.splitlines():
             if line.startswith("Pages:"):
                 pages = int(line.split(":", 1)[1].strip())
-        extracted: list[tuple[str, float]] = []
+        extracted = []
         for page_no in range(1, pages + 1):
             result = subprocess.run(["pdftotext", "-layout", "-f", str(page_no), "-l", str(page_no), str(path), "-"], capture_output=True, text=True, check=False)
             text = result.stdout.strip()
@@ -40,11 +54,12 @@ def extract_pages(path: Path, mime_type: str) -> list[tuple[str, float]]:
         return [("OCR engine unavailable in local demo environment.", 0.35)]
 
 
-async def process_version(version_id: str) -> None:
+async def process_version(version_id: str | UUID) -> None:
+    vid = UUID(str(version_id)) if isinstance(version_id, str) else version_id
     settings = get_settings()
     async with AsyncSessionLocal() as session:
-        version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == version_id))
-        source = await session.scalar(select(File).where(File.version_id == version_id))
+        version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == vid))
+        source = await session.scalar(select(File).where(File.version_id == vid))
         if version is None or source is None:
             return
         version.status = VersionStatus.PROCESSING
@@ -65,7 +80,7 @@ async def process_version(version_id: str) -> None:
             await session.commit()
         except Exception:
             await session.rollback()
-            version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == version_id))
+            version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == vid))
             if version is not None:
                 version.status = VersionStatus.FAILED
                 await session.commit()

@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 adds the pgvector extension pre-installed.
+    # If you had local data in kmrl_postgres_data, remove the volume first:
+    #   docker volume rm sih_kmrl_postgres_data
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: kmrl
       POSTGRES_PASSWORD: kmrl

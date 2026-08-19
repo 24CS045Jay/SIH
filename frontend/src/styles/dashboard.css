@@ -1,0 +1,108 @@
+/* Dashboard (Module 1 — Central Control) */
+
+.dashboard { display: grid; gap: 24px; }
+
+/* ── Stat grid ────────────────────────────────────────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px;
+  display: grid;
+  gap: 6px;
+}
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--navy-950);
+  line-height: 1;
+}
+.stat-card .stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.stat-card .stat-sub { font-size: 11px; color: var(--muted); }
+.stat-card.critical .stat-value { color: var(--status-critical); }
+.stat-card.high     .stat-value { color: var(--status-high); }
+.stat-card.warning  .stat-value { color: var(--status-medium); }
+.stat-card.ok       .stat-value { color: var(--status-completed); }
+
+/* ── Chart section ────────────────────────────────────────────────────────── */
+.dashboard-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+.dashboard-section h3 {
+  margin: 0;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--navy-900);
+}
+
+/* ── Inline SVG bar chart ─────────────────────────────────────────────────── */
+.bar-chart { display: flex; flex-direction: column; gap: 6px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.bar-row .bar-label { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-row .bar-track { background: var(--canvas); border-radius: 2px; height: 12px; overflow: hidden; }
+.bar-row .bar-fill  { height: 100%; border-radius: 2px; background: var(--navy-700); transition: width 0.4s ease; }
+.bar-row .bar-fill.critical { background: var(--status-critical); }
+.bar-row .bar-fill.high     { background: var(--status-high); }
+.bar-row .bar-fill.medium   { background: var(--status-medium); }
+.bar-row .bar-fill.ok       { background: var(--status-completed); }
+.bar-row .bar-value { text-align: right; color: var(--ink); font-weight: 600; font-size: 12px; }
+
+/* ── Priority distribution donut (inline SVG) ─────────────────────────────── */
+.priority-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.donut-legend { display: grid; gap: 6px; font-size: 12px; }
+.legend-row { display: flex; align-items: center; gap: 6px; }
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Signals grid ─────────────────────────────────────────────────────────── */
+.signal-list { display: grid; gap: 8px; }
+.signal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  font-size: 12px;
+  gap: 12px;
+}
+.signal-row strong { color: var(--navy-900); font-size: 13px; }
+.signal-row .signal-meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+@media (max-width: 900px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .bar-row { grid-template-columns: 90px 1fr 36px; }
+}
+@media (max-width: 680px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .priority-donut-wrap { flex-direction: column; }
+}

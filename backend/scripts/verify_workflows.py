@@ -2,7 +2,9 @@ from __future__ import annotations
 import json
 from urllib.request import Request, urlopen
 
-BASE = "http://127.0.0.1:8030/api/v1"
+import os
+
+BASE = os.getenv("KMRL_API_BASE", "http://127.0.0.1:8000/api/v1")
 
 def request(path: str, method: str = "GET", payload: dict | None = None, token: str | None = None):
     headers = {"Content-Type": "application/json"}
@@ -13,7 +15,10 @@ def request(path: str, method: str = "GET", payload: dict | None = None, token: 
     except Exception as exc:
         if hasattr(exc, "code"):
             body = exc.read().decode()
-            return exc.code, json.loads(body)
+            try:
+                return exc.code, json.loads(body)
+            except Exception:
+                return exc.code, {"detail": body}
         raise
 
 def login(email: str):

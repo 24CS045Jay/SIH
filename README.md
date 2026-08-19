@@ -14,7 +14,35 @@ This repository contains the Phase 1 monorepo scaffold for the CHA-225 KMRL Docu
 
 Install Node.js 20+ with npm, Python 3.11+, PostgreSQL 14+, and Redis 6+. Docker users can start the data services with the included Compose file.
 
-## Start PostgreSQL and Redis
+## Quick Start (Recommended Single-Command Bootstrap)
+
+To start everything locally in one step (Docker services, database wait loop, migrations, demo user seeding, demo document corpus seeding, Uvicorn API server, and Celery worker):
+
+```bash
+make dev-up
+```
+
+*Or run directly without Make:*
+```bash
+python backend/scripts/dev_up.py
+# or on Linux/macOS: ./backend/scripts/dev_up.sh
+```
+
+In a second terminal, start the frontend:
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+---
+
+## Manual Step-by-Step Setup (Fallback)
+
+If you prefer to run each piece individually:
+
+### 1. Start PostgreSQL and Redis
 
 ```bash
 docker compose up -d postgres redis
@@ -22,7 +50,7 @@ docker compose up -d postgres redis
 
 The default development connection is `postgresql+asyncpg://kmrl:kmrl@localhost:5432/kmrl_portal`. No real credentials are stored in this repository.
 
-## Start the backend
+### 2. Configure and start the backend
 
 ```bash
 cd backend
@@ -31,12 +59,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 alembic upgrade head
+python scripts/seed.py
 uvicorn app.main:app --reload --port 8000
+```
+
+Once the API server is up, seed the full demo document corpus (in another terminal or after starting the server):
+```bash
+python scripts/seed_demo_corpus.py
 ```
 
 The health endpoint is `GET http://localhost:8000/api/v1/health`. FastAPI documentation is available at `http://localhost:8000/api/v1/docs`.
 
-## Start the worker
+### 3. Start the Celery worker
 
 In another terminal, with the backend virtual environment active and Redis running:
 
@@ -48,15 +82,17 @@ celery -A app.jobs.celery_app.celery_app worker --loglevel=INFO
 
 The placeholder task can be dispatched from a Python shell with `from app.jobs.ping import ping_job; ping_job.delay()`. It returns a JSON result containing `pong` and an ISO timestamp.
 
-## Start the frontend
+### 4. Start the frontend
 
 ```bash
 cd frontend
+cp .env.example .env
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The root route is the protected-workspace shell for this phase; `/login` is the public placeholder route. Authentication and production RBAC are deliberately reserved for a later phase, while the route boundary is already represented in the entrypoint.
+Open `http://localhost:5173`. The root route is the protected-workspace shell; `/login` is the public authentication route.
+
 
 ## Architecture
 
