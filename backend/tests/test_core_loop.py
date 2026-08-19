@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 import unittest
+from types import SimpleNamespace
+from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -50,6 +52,22 @@ class CoreLoopTests(unittest.TestCase):
 
     def test_rag_refusal_path(self) -> None:
         answer, citations = answer_from_evidence("What is the lunar depot expansion date?", [])
+        self.assertEqual(answer, REFUSAL)
+        self.assertEqual(citations, [])
+
+    def test_rag_relevant_answer_is_focused(self) -> None:
+        chunk = SimpleNamespace(id=uuid4(), text="The internship duration is eight weeks. The intern reports to the Safety Compliance department for weekly review.")
+        item = SimpleNamespace(chunk=chunk, document_id=uuid4(), document_title="Summer Internship Report", version_id=uuid4(), page_no=2, keyword_score=0.5, vector_score=0.8)
+        answer, citations = answer_from_evidence("What is the internship duration and reporting department?", [item])
+        self.assertNotEqual(answer, REFUSAL)
+        self.assertIn("eight weeks", answer)
+        self.assertIn("Safety Compliance", answer)
+        self.assertEqual(len(citations), 1)
+
+    def test_rag_unrelated_question_refuses_even_with_candidates(self) -> None:
+        chunk = SimpleNamespace(id=uuid4(), text="The internship duration is eight weeks and the report is reviewed weekly.")
+        item = SimpleNamespace(chunk=chunk, document_id=uuid4(), document_title="Summer Internship Report", version_id=uuid4(), page_no=2, keyword_score=0.4, vector_score=0.9)
+        answer, citations = answer_from_evidence("What is the approved cafeteria menu for next Tuesday?", [item])
         self.assertEqual(answer, REFUSAL)
         self.assertEqual(citations, [])
 

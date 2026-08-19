@@ -16,7 +16,7 @@ from app.services.access import can_access_scope
 
 REFUSAL = "Information not available in the approved documents"
 TOKEN_RE = re.compile(r"[a-z0-9]+")
-STOPWORDS = {"the", "is", "a", "an", "and", "or", "of", "for", "to", "in", "on", "what", "who", "how", "are", "was", "were", "this", "that", "from", "with"}
+STOPWORDS = {"the", "is", "a", "an", "and", "or", "of", "for", "to", "in", "on", "what", "who", "how", "are", "was", "were", "this", "that", "from", "with", "about", "does", "do", "did", "can", "could", "would", "should", "please", "tell", "me", "give", "provide", "document", "report", "information", "related", "relate"}
 
 
 @dataclass
@@ -89,6 +89,8 @@ def allowed(scope: dict, user: dict) -> bool:
 async def retrieve(session: AsyncSession, question: str, user: dict, limit: int = 6) -> list[RetrievedChunk]:
     rows = (await session.execute(select(Chunk, Document.id, Document.title, DocumentVersion.id, Page.page_no).join(DocumentVersion, Chunk.version_id == DocumentVersion.id).join(Document, DocumentVersion.document_id == Document.id).join(Page, Chunk.page_id == Page.id).where(DocumentVersion.status == "review_ready"))).all()
     query_tokens = set(tokens(question))
+    if not query_tokens:
+        return []
     query_embedding = embedding(question)
     results: list[RetrievedChunk] = []
     for chunk, document_id, title, version_id, page_no in rows:
@@ -102,12 +104,38 @@ async def retrieve(session: AsyncSession, question: str, user: dict, limit: int 
     return results[:limit]
 
 
+def _focused_excerpt(text: str, query_terms: set[str], limit: int = 300) -> str:
+    """Return only the most query-relevant sentences/lines from a chunk."""
+    units = [unit.strip() for unit in re.split(r"(?<=[.!?])\s+|\n+", text) if unit.strip()]
+    ranked = sorted(
+        ((len(query_terms & set(tokens(unit))), index, unit) for index, unit in enumerate(units)),
+        key=lambda item: (item[0], -item[1]),
+        reverse=True,
+    )
+    selected = [unit for overlap, _, unit in ranked if overlap > 0][:2]
+    excerpt = " ".join(selected) if selected else text.strip()
+    return excerpt[:limit].rstrip() + ("…" if len(excerpt) > limit else "")
+
+
 def answer_from_evidence(question: str, results: list[RetrievedChunk]) -> tuple[str, list[dict]]:
-    # Refusal safety gate: vector similarity may rank candidates, but an answer
-    # requires meaningful lexical overlap with approved evidence as well.
-    strong = [item for item in results if item.keyword_score >= 0.12]
-    if not strong: return REFUSAL, []
-    citations = [{"citation_id": f"C{i}", "chunk_id": str(item.chunk.id), "document_id": str(item.document_id), "version_id": str(item.version_id), "document_title": item.document_title, "page_no": item.page_no, "quote": item.chunk.text[:320]} for i, item in enumerate(strong, start=1)]
-    evidence = " ".join(f"[{citation['citation_id']}] {citation['quote']}" for citation in citations)
-    answer = f"Based on the approved evidence, {evidence}"
+    # Vector similarity is only a ranking signal. A response requires meaningful
+    # overlap with several content terms so random questions cannot be answered
+    # from a merely nearby embedding bucket.
+    query_terms = set(tokens(question))
+    if not query_terms:
+        return REFUSAL, []
+    minimum_overlap = max(1, math.ceil(len(query_terms) * 0.25))
+    strong = []
+    for item in results:
+        overlap = len(query_terms & set(tokens(item.chunk.text)))
+        if overlap >= minimum_overlap:
+            strong.append((overlap, item))
+    if not strong:
+        return REFUSAL, []
+    strong.sort(key=lambda pair: (pair[0], 0.55 * pair[1].keyword_score + 0.45 * pair[1].vector_score), reverse=True)
+    selected = [item for _, item in strong[:3]]
+    citations = []
+    for index, item in enumerate(selected, start=1):
+        citations.append({"citation_id": f"C{index}", "chunk_id": str(item.chunk.id), "document_id": str(item.document_id), "version_id": str(item.version_id), "document_title": item.document_title, "page_no": item.page_no, "quote": _focused_excerpt(item.chunk.text, query_terms)})
+    answer = "Relevant evidence from the approved documents:\n" + "\n".join(f"[{citation['citation_id']}] {citation['quote']}" for citation in citations)
     return answer, citations
