@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     app_name: str = "KMRL Document Intelligence & Action Portal"
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:8080,http://127.0.0.1:8080"
     database_url: str = "postgresql+asyncpg://kmrl:kmrl@localhost:5432/kmrl_portal"
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str | None = None

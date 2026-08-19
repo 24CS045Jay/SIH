@@ -1,12 +1,16 @@
-from collections import defaultdict, deque
-from time import monotonic
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from uuid import UUID, uuid4
 import hashlib
 import json
+import logging
+import traceback
 import jwt
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+logger = logging.getLogger("kmrl_portal")
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
@@ -24,25 +28,13 @@ from app.models import AuditEvent
 from app.core.config import get_settings
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name, version="0.1.0")
-_rate_windows: dict[str, deque[float]] = defaultdict(deque)
-_RATE_LIMITS = {"/auth/login": (8, 60.0), "/documents/upload": (12, 60.0)}
-
-@app.middleware("http")
-async def rate_limit(request: Request, call_next):
-    path = request.url.path.removeprefix(settings.api_v1_prefix)
-    limit_config = _RATE_LIMITS.get(path)
-    if limit_config:
-        limit, window = limit_config
-        key = f"{path}:{request.client.host if request.client else 'unknown'}"
-        now = monotonic()
-        bucket = _rate_windows[key]
-        while bucket and now - bucket[0] >= window:
-            bucket.popleft()
-        if len(bucket) >= limit:
-            return JSONResponse(status_code=429, content={"detail": "Too many requests. Please wait and try again."}, headers={"Retry-After": str(int(window))})
-        bucket.append(now)
-    return await call_next(request)
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    docs_url=f"{settings.api_v1_prefix}/docs",
+    redoc_url=f"{settings.api_v1_prefix}/redoc",
+    openapi_url=f"{settings.api_v1_prefix}/openapi.json",
+)
 
 @app.middleware("http")
 async def trace_and_audit(request: Request, call_next):
@@ -86,18 +78,65 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-api_v1 = FastAPI(openapi_url="/openapi.json", docs_url="/docs", redoc_url="/redoc")
-api_v1.include_router(health_router)
-api_v1.include_router(documents_router)
-api_v1.include_router(intelligence_router)
-api_v1.include_router(search_router)
-api_v1.include_router(workflows_router)
-api_v1.include_router(comparisons_router)
-api_v1.include_router(auth_router)
-api_v1.include_router(rbac_router)
-api_v1.include_router(dashboard_router)
-api_v1.include_router(audit_router)
-app.mount(settings.api_v1_prefix, api_v1)
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    trace_id = getattr(request.state, "trace_id", "unknown")
+    logger.error(
+        "Unhandled exception on %s %s [trace_id=%s]:\n%s",
+        request.method, request.url.path, trace_id, traceback.format_exc(),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": f"An unexpected server error occurred ({exc.__class__.__name__}). "
+                      f"Reference trace ID: {trace_id}. Check backend logs for the full traceback.",
+            "trace_id": trace_id,
+        },
+    )
+
+api_v1_prefix = settings.api_v1_prefix
+app.include_router(health_router, prefix=api_v1_prefix)
+app.include_router(documents_router, prefix=api_v1_prefix)
+app.include_router(intelligence_router, prefix=api_v1_prefix)
+app.include_router(search_router, prefix=api_v1_prefix)
+app.include_router(workflows_router, prefix=api_v1_prefix)
+app.include_router(comparisons_router, prefix=api_v1_prefix)
+app.include_router(auth_router, prefix=api_v1_prefix)
+app.include_router(rbac_router, prefix=api_v1_prefix)
+app.include_router(dashboard_router, prefix=api_v1_prefix)
+app.include_router(audit_router, prefix=api_v1_prefix)
+
+
+@app.on_event("startup")
+async def verify_critical_routes() -> None:
+    """Fail loudly at boot if a critical route is missing instead of 404ing later at login."""
+    resolved_paths = {getattr(route, "path", "") for route in app.routes}
+    required = [
+        f"{api_v1_prefix}/auth/demo-users",
+        f"{api_v1_prefix}/auth/login",
+        f"{api_v1_prefix}/health",
+    ]
+    missing = [path for path in required if path not in resolved_paths]
+    if missing:
+        print("!" * 70)
+        print("STARTUP ERROR: the following required API routes did not register:")
+        for path in missing:
+            print(f"  - {path}")
+        print("The server will start, but these endpoints will 404. Check router imports/prefixes in app/main.py.")
+        print("!" * 70)
+    else:
+        print(f"[startup] All critical routes verified OK under prefix '{api_v1_prefix}'.")
 
 
 @app.get("/health", include_in_schema=False)

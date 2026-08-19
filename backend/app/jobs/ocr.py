@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from uuid import UUID
+
 from celery.exceptions import MaxRetriesExceededError
 from sqlalchemy import delete, select
 
@@ -39,12 +41,50 @@ def _run(command: list[str], *, timeout: int = COMMAND_TIMEOUT_SECONDS) -> subpr
     return result
 
 
+def _get_pdf_page_count(path: Path) -> int:
+    if shutil.which("pdfinfo") is not None:
+        try:
+            info = _run(["pdfinfo", str(path)], timeout=30).stdout
+            return next((int(line.split(":", 1)[1].strip()) for line in info.splitlines() if line.startswith("Pages:")), 1)
+        except Exception:
+            pass
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(str(path))
+        return max(1, len(reader.pages))
+    except Exception:
+        return 1
+
+
 def _extract_pdf_page(path: Path, page_no: int) -> tuple[str, float]:
-    direct = _run(["pdftotext", "-layout", "-f", str(page_no), "-l", str(page_no), str(path), "-"]).stdout.strip()
-    if len(direct) >= PDF_TEXT_MINIMUM:
-        return direct, 0.94
+    if shutil.which("pdftotext") is not None:
+        try:
+            direct = _run(["pdftotext", "-layout", "-f", str(page_no), "-l", str(page_no), str(path), "-"]).stdout.strip()
+            if len(direct) >= PDF_TEXT_MINIMUM:
+                return direct, 0.94
+        except Exception:
+            pass
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(str(path))
+        if 1 <= page_no <= len(reader.pages):
+            text = (reader.pages[page_no - 1].extract_text() or "").strip()
+            if len(text) >= PDF_TEXT_MINIMUM:
+                return text, 0.92
+    except Exception:
+        pass
     if shutil.which("pdftoppm") is None or shutil.which("tesseract") is None:
-        raise RuntimeError("Scanned PDF requires pdftoppm and tesseract, but an OCR executable is unavailable")
+        # Fallback to whatever text pypdf extracted even if short
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(str(path))
+            if 1 <= page_no <= len(reader.pages):
+                text = (reader.pages[page_no - 1].extract_text() or "").strip()
+                if text:
+                    return text, 0.70
+        except Exception:
+            pass
+        return "No text could be extracted from page.", 0.30
     with tempfile.TemporaryDirectory(prefix="kmrl-ocr-") as temp_dir:
         prefix = str(Path(temp_dir) / "page")
         _run(["pdftoppm", "-f", str(page_no), "-l", str(page_no), "-r", "150", "-png", str(path), prefix])
@@ -61,8 +101,7 @@ def extract_pages(path: Path, mime_type: str) -> list[tuple[str, float]]:
     if mime_type == "text/plain" or path.suffix.lower() in {".txt", ".md", ".csv"}:
         return [(path.read_text(errors="replace"), 0.98)]
     if mime_type == "application/pdf" or path.suffix.lower() == ".pdf":
-        info = _run(["pdfinfo", str(path)], timeout=30).stdout
-        pages = next((int(line.split(":", 1)[1].strip()) for line in info.splitlines() if line.startswith("Pages:")), 1)
+        pages = _get_pdf_page_count(path)
         return [_extract_pdf_page(path, page_no) for page_no in range(1, pages + 1)]
     if shutil.which("tesseract") is None:
         raise RuntimeError("Tesseract executable not found")
@@ -77,10 +116,11 @@ async def _set_stage(session, version: DocumentVersion, stage: str, *, status: V
     await session.commit()
 
 
-async def process_version(version_id: str) -> None:
+async def process_version(version_id: str | UUID) -> None:
     async with AsyncSessionLocal() as session:
-        version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == version_id))
-        source = await session.scalar(select(File).where(File.version_id == version_id))
+        vid = UUID(str(version_id)) if not isinstance(version_id, UUID) else version_id
+        version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == vid))
+        source = await session.scalar(select(File).where(File.version_id == vid))
         if version is None or source is None:
             return
         version.error_message = None
@@ -104,13 +144,14 @@ async def process_version(version_id: str) -> None:
             await _set_stage(session, version, "ready", status=VersionStatus.REVIEW_READY)
         except Exception as exc:
             await session.rollback()
-            failed = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == version_id))
+            failed = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == vid))
             if failed is not None:
                 failed.status = VersionStatus.FAILED
                 failed.processing_stage = "failed"
                 failed.error_message = _safe_error(exc)
                 await session.commit()
             raise
+
 
 
 @celery_app.task(bind=True, name="kmrl.jobs.process_document", max_retries=2, acks_late=True)

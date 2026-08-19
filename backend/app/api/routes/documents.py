@@ -1,5 +1,5 @@
-from __future__ import annotations
-
+import asyncio
+import logging
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
@@ -15,11 +15,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.security import get_current_user, require_roles
 from app.db.session import get_db
-from app.jobs.ocr import process_document
+from app.jobs.ocr import process_document, process_version
 from app.models import Action, ActionEvent, Alert, Assignment, Change, Chunk, Comparison, Department, Document, DocumentClassification, DocumentVersion, ExtractedFact, File as StoredFile, MalwareStatus, Page, Role, Sensitivity, User, VersionStatus
 from app.services.access import can_access_document
 from app.schemas.documents import DocumentDetail, DocumentListItem, PageResponse, ProcessingStatusResponse, UploadResponse
 from app.services.storage import version_storage_path
+
+logger = logging.getLogger("kmrl_portal")
+
+
+def dispatch_ocr(version_id: UUID | str) -> None:
+    vid_str = str(version_id)
+    settings = get_settings()
+    if settings.environment == "development":
+        asyncio.create_task(process_version(vid_str))
+        return
+    try:
+        process_document.delay(vid_str)
+    except Exception as exc:
+        logger.warning(
+            "Celery queue dispatch unavailable (%s); executing processing in background task: %s",
+            exc.__class__.__name__,
+            exc,
+        )
+        asyncio.create_task(process_version(vid_str))
+
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 ALLOWED_MIME = {"application/pdf", "image/png", "image/jpeg", "image/tiff", "text/plain", "text/markdown", "text/csv"}
@@ -46,57 +66,56 @@ def list_item(document: Document, owner_name: str, version: DocumentVersion) -> 
 @router.post("/upload", response_model=UploadResponse, status_code=202)
 async def upload_document(file: UploadFile = UploadFileDependency(...), current_user: dict = Depends(require_roles(Role.SYSTEM_ADMINISTRATOR, Role.DOCUMENT_ADMINISTRATOR, Role.REVIEWER, Role.DEPARTMENT_USER)), db: AsyncSession = Depends(get_db)) -> UploadResponse:
     filename = file.filename or "uploaded-file"
-    extension = Path(filename).suffix.lower()
-    if extension not in ALLOWED_EXTENSIONS or (file.content_type and file.content_type not in ALLOWED_MIME):
-        raise HTTPException(status_code=422, detail="Rejected file type. Accepted: PDF, PNG/JPEG/TIFF, or text files.")
-    content = await file.read()
-    max_size = get_settings().max_upload_size_mb * 1024 * 1024
-    if len(content) == 0 or len(content) > max_size:
-        raise HTTPException(status_code=422, detail=f"File must be non-empty and no larger than {get_settings().max_upload_size_mb} MB.")
-    if not sniff_mime(extension, content):
-        raise HTTPException(status_code=422, detail="File content does not match its extension or allowed MIME family.")
-    malware_status = malware_scan(content)
-    if malware_status == MalwareStatus.INFECTED:
-        raise HTTPException(status_code=422, detail="Malware scanner rejected the upload.")
-    digest = sha256(content).hexdigest()
-    duplicate = await db.scalar(select(DocumentVersion).where(DocumentVersion.hash == digest))
-    if duplicate:
-        raise HTTPException(status_code=409, detail=f"Duplicate file detected; existing version is {duplicate.id}.")
-    owner_id = UUID(current_user["sub"])
-    title = Path(filename).stem.replace("_", " ").strip() or "Untitled document"
-    normalized_title = re.sub(r"\s+v\d+$", "", title, flags=re.IGNORECASE).strip()
-    document = await db.scalar(select(Document).where(Document.title.in_([title, normalized_title])))
-    if document is None:
-        document = Document(title=normalized_title, type=extension.lstrip("."), owner_id=owner_id, classification=DocumentClassification.OTHER, sensitivity=Sensitivity.INTERNAL)
-        db.add(document)
-        await db.flush()
-    labels = set((await db.execute(select(DocumentVersion.version_label).where(DocumentVersion.document_id == document.id))).scalars().all())
-    existing_count = len(labels)
-    explicit_label = re.search(r"\s+(v\d+)$", title, flags=re.IGNORECASE)
-    requested_label = explicit_label.group(1).lower() if explicit_label else None
-    if requested_label and requested_label not in labels:
-        version_label = requested_label
-    else:
-        next_number = existing_count + 1
-        while f"v{next_number}" in labels:
-            next_number += 1
-        version_label = f"v{next_number}"
-    version = DocumentVersion(document_id=document.id, version_label=version_label, hash=digest, status=VersionStatus.QUEUED)
-    db.add(version)
-    await db.flush()
-    path = version_storage_path(version.id, filename)
-    path.write_bytes(content)
-    db.add(StoredFile(version_id=version.id, object_key=str(path), mime_type=file.content_type or "application/octet-stream", size=len(content), malware_status=malware_status))
-    await db.commit()
     try:
-        process_document.delay(str(version.id))
-    except Exception as exc:
-        version.status = VersionStatus.FAILED
-        version.processing_stage = "failed"
-        version.error_message = "OCR queue unavailable; upload was stored but processing could not be started."
+        extension = Path(filename).suffix.lower()
+        if extension not in ALLOWED_EXTENSIONS or (file.content_type and file.content_type not in ALLOWED_MIME):
+            raise HTTPException(status_code=422, detail="Rejected file type. Accepted: PDF, PNG/JPEG/TIFF, or text files.")
+        content = await file.read()
+        max_size = get_settings().max_upload_size_mb * 1024 * 1024
+        if len(content) == 0 or len(content) > max_size:
+            raise HTTPException(status_code=422, detail=f"File must be non-empty and no larger than {get_settings().max_upload_size_mb} MB.")
+        if not sniff_mime(extension, content):
+            raise HTTPException(status_code=422, detail="File content does not match its extension or allowed MIME family.")
+        malware_status = malware_scan(content)
+        if malware_status == MalwareStatus.INFECTED:
+            raise HTTPException(status_code=422, detail="Malware scanner rejected the upload.")
+        digest = sha256(content).hexdigest()
+        duplicate = await db.scalar(select(DocumentVersion).where(DocumentVersion.hash == digest))
+        if duplicate:
+            raise HTTPException(status_code=409, detail=f"Duplicate file detected; existing version is {duplicate.id}.")
+        owner_id = UUID(current_user["sub"])
+        title = Path(filename).stem.replace("_", " ").strip() or "Untitled document"
+        normalized_title = re.sub(r"\s+v\d+$", "", title, flags=re.IGNORECASE).strip()
+        document = await db.scalar(select(Document).where(Document.title.in_([title, normalized_title])))
+        if document is None:
+            document = Document(title=normalized_title, type=extension.lstrip("."), owner_id=owner_id, classification=DocumentClassification.OTHER, sensitivity=Sensitivity.INTERNAL)
+            db.add(document)
+            await db.flush()
+        labels = set((await db.execute(select(DocumentVersion.version_label).where(DocumentVersion.document_id == document.id))).scalars().all())
+        existing_count = len(labels)
+        explicit_label = re.search(r"\s+(v\d+)$", title, flags=re.IGNORECASE)
+        requested_label = explicit_label.group(1).lower() if explicit_label else None
+        if requested_label and requested_label not in labels:
+            version_label = requested_label
+        else:
+            next_number = existing_count + 1
+            while f"v{next_number}" in labels:
+                next_number += 1
+            version_label = f"v{next_number}"
+        version = DocumentVersion(document_id=document.id, version_label=version_label, hash=digest, status=VersionStatus.QUEUED)
+        db.add(version)
+        await db.flush()
+        path = version_storage_path(version.id, filename)
+        path.write_bytes(content)
+        db.add(StoredFile(version_id=version.id, object_key=str(path), mime_type=file.content_type or "application/octet-stream", size=len(content), malware_status=malware_status))
         await db.commit()
-        raise HTTPException(status_code=503, detail="OCR queue unavailable. The upload was stored as failed and can be retried.") from exc
-    return UploadResponse(document_id=document.id, version_id=version.id, status=VersionStatus.QUEUED.value, message="Upload accepted and OCR job queued.")
+        dispatch_ocr(version.id)
+        return UploadResponse(document_id=document.id, version_id=version.id, status=VersionStatus.QUEUED.value, message="Upload accepted and OCR job queued.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Upload failed unexpectedly for file %r: %s", filename, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Upload failed unexpectedly: {exc.__class__.__name__}: {exc}") from exc
 
 
 @router.get("", response_model=list[DocumentListItem])
@@ -154,7 +173,7 @@ async def retry_document(document_id: UUID, current_user: dict = Depends(require
     version.processing_stage = "queued"
     version.error_message = None
     await db.commit()
-    process_document.delay(str(version.id))
+    dispatch_ocr(version.id)
     return {"document_id": str(document.id), "version_id": str(version.id), "status": VersionStatus.QUEUED.value}
 
 
