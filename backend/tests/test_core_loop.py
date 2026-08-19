@@ -64,6 +64,16 @@ class CoreLoopTests(unittest.TestCase):
         self.assertIn("Safety Compliance", answer)
         self.assertEqual(len(citations), 1)
 
+    def test_rag_document_focus_excludes_unrelated_sources(self) -> None:
+        manual = SimpleNamespace(id=uuid4(), text="Maintenance Manual V3: brake inspection frequency is every 14 days for fleet units.")
+        circular = SimpleNamespace(id=uuid4(), text="Safety Circular: conduct an emergency brake isolation review by 25 August.")
+        manual_item = SimpleNamespace(chunk=manual, document_id=uuid4(), document_title="Maintenance Manual", version_id=uuid4(), page_no=1, keyword_score=0.5, vector_score=0.8)
+        circular_item = SimpleNamespace(chunk=circular, document_id=uuid4(), document_title="Safety Circular S-101", version_id=uuid4(), page_no=1, keyword_score=0.45, vector_score=0.85)
+        answer, citations = answer_from_evidence("What changed in the brake inspection frequency in the Maintenance Manual V3?", [circular_item, manual_item])
+        self.assertNotEqual(answer, REFUSAL)
+        self.assertTrue(citations)
+        self.assertTrue(all(citation["document_title"] == "Maintenance Manual" for citation in citations))
+
     def test_rag_unrelated_question_refuses_even_with_candidates(self) -> None:
         chunk = SimpleNamespace(id=uuid4(), text="The internship duration is eight weeks and the report is reviewed weekly.")
         item = SimpleNamespace(chunk=chunk, document_id=uuid4(), document_title="Summer Internship Report", version_id=uuid4(), page_no=2, keyword_score=0.4, vector_score=0.9)

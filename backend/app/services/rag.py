@@ -117,13 +117,27 @@ def _focused_excerpt(text: str, query_terms: set[str], limit: int = 300) -> str:
     return excerpt[:limit].rstrip() + ("…" if len(excerpt) > limit else "")
 
 
+def _document_focus_terms(question: str) -> set[str]:
+    terms = set(tokens(question))
+    focus_pairs = ({"maintenance", "manual"}, {"safety", "circular"}, {"purchase", "order"}, {"incident", "report"}, {"training", "notice"}, {"environmental", "compliance"})
+    for pair in focus_pairs:
+        if pair <= terms:
+            return pair
+    return set()
+
+
 def answer_from_evidence(question: str, results: list[RetrievedChunk]) -> tuple[str, list[dict]]:
     # Vector similarity is only a ranking signal. A response requires meaningful
     # overlap with several content terms so random questions cannot be answered
-    # from a merely nearby embedding bucket.
+    # from a merely nearby embedding bucket. Explicit document-family wording
+    # narrows the evidence set before scoring to prevent cross-document drift.
     query_terms = set(tokens(question))
     if not query_terms:
         return REFUSAL, []
+    focus_terms = _document_focus_terms(question)
+    scoped_results = [item for item in results if focus_terms & set(tokens(item.document_title))] if focus_terms else results
+    if focus_terms and scoped_results:
+        results = scoped_results
     minimum_overlap = max(1, math.ceil(len(query_terms) * 0.25))
     strong = []
     for item in results:
